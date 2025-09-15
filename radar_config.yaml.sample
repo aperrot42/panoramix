@@ -1,0 +1,7 @@
+radars:
+  "40/33": # SAC/SIC identifier for TRUC radar
+    name: "TRUC"
+    position:
+      latitude_deg: 45.66666666
+      longitude_deg: 6.55555555
+      altitude_m: 1300.12

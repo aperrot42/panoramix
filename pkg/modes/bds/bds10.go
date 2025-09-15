@@ -1,0 +1,84 @@
+package bds
+
+// BDS10Decoder decodes BDS 1,0 - Data Link Capability Report
+type BDS10Decoder struct{}
+
+func (d *BDS10Decoder) BDSCode() (uint8, uint8) {
+	return 1, 0
+}
+
+func (d *BDS10Decoder) Decode(data []byte) (map[string]interface{}, error) {
+	fields := make(map[string]interface{})
+
+	// Bits 1-16: Reserved for ACAS
+	fields["acas_reserved"] = ExtractBits(data, 0, 16)
+
+	// Bit 17: BDS 1,0 bit 16 = 1
+	fields["bds_10_cf"] = ExtractBits(data, 16, 1) == 1
+
+	// Bit 18: BDS 1,7 capability
+	fields["bds_17_cap"] = ExtractBits(data, 17, 1) == 1
+
+	// Bits 19-23: Reserved
+	
+	// Bit 24: Comm-B broadcast message 1 capability
+	fields["comm_b_broadcast_1_cap"] = ExtractBits(data, 23, 1) == 1
+
+	// Bit 25: BDS 2,0 capability
+	fields["bds_20_cap"] = ExtractBits(data, 24, 1) == 1
+
+	// Bit 26: BDS 2,1 capability
+	fields["bds_21_cap"] = ExtractBits(data, 25, 1) == 1
+
+	// Bit 27: BDS 4,0 capability
+	fields["bds_40_cap"] = ExtractBits(data, 26, 1) == 1
+
+	// Bit 28: BDS 4,1 capability
+	fields["bds_41_cap"] = ExtractBits(data, 27, 1) == 1
+
+	// Bit 29: BDS 4,2 capability
+	fields["bds_42_cap"] = ExtractBits(data, 28, 1) == 1
+
+	// Bit 30: BDS 4,3 capability
+	fields["bds_43_cap"] = ExtractBits(data, 29, 1) == 1
+
+	// Bit 31: BDS 4,4 capability
+	fields["bds_44_cap"] = ExtractBits(data, 30, 1) == 1
+
+	// Bit 32: BDS 4,5 capability
+	fields["bds_45_cap"] = ExtractBits(data, 31, 1) == 1
+
+	// Bit 33: BDS 4,8 capability
+	fields["bds_48_cap"] = ExtractBits(data, 32, 1) == 1
+
+	// Bit 34: BDS 5,0 capability
+	fields["bds_50_cap"] = ExtractBits(data, 33, 1) == 1
+
+	// Bit 35: BDS 5,1 capability
+	fields["bds_51_cap"] = ExtractBits(data, 34, 1) == 1
+
+	// Bit 36: BDS 5,2 capability
+	fields["bds_52_cap"] = ExtractBits(data, 35, 1) == 1
+
+	// Bit 37: BDS 5,3 capability
+	fields["bds_53_cap"] = ExtractBits(data, 36, 1) == 1
+
+	// Bit 38: BDS 5,4 capability
+	fields["bds_54_cap"] = ExtractBits(data, 37, 1) == 1
+
+	// Bit 39: BDS 5,5 capability
+	fields["bds_55_cap"] = ExtractBits(data, 38, 1) == 1
+
+	// Bit 40: BDS 5,6 capability
+	fields["bds_56_cap"] = ExtractBits(data, 39, 1) == 1
+
+	// Bit 41: BDS 5,F capability
+	fields["bds_5F_cap"] = ExtractBits(data, 40, 1) == 1
+
+	// Bit 42: BDS 6,0 capability
+	fields["bds_60_cap"] = ExtractBits(data, 41, 1) == 1
+
+	// Bits 43-56: Reserved
+	
+	return fields, nil
+}
