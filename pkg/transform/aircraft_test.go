@@ -33,8 +33,16 @@ func TestPositionExtractorIntegration(t *testing.T) {
 			"I048/070": map[string]interface{}{
 				"mode3a_code": "1000",
 			},
-			"I048/090": map[string]interface{}{
-				"FlightLevel": 100.0,
+			"I048/090": struct {
+				FlightLevel float64
+				RawValue    int16
+				Validated   bool
+				Garbled     bool
+			}{
+				FlightLevel: 100.0,
+				RawValue:    400, // 100 * 4 (since 1/4 FL resolution)
+				Validated:   true,
+				Garbled:     false,
 			},
 			"I048/040": map[string]interface{}{
 				"rho_nm":    96.1640625,

@@ -82,22 +82,3 @@ func (ae *PositionExtractor) ExtractFromMessage(msg *asterix.AsterixMessage, tim
 	}
 }
 
-// ExtractFromMessageTyped extracts aircraft observations from a typed ASTERIX message
-func (ae *PositionExtractor) ExtractFromMessageTyped(msg *asterix.CAT048Message, timestamp time.Time) (*Position, error) {
-	// Get radar position
-	radarPos, ok := ae.radarRegistry.GetRadarPosition(msg.SIC, msg.SAC)
-	if !ok {
-		return nil, fmt.Errorf("radar position not found for SIC=%d SAC=%d - please configure radar position in radar_config.yaml", msg.SIC, msg.SAC)
-	}
-
-	// Extract data based on message category
-	if msg.Category == 48 {
-		obs, err := ae.extractFromCAT048Typed(msg, radarPos, timestamp)
-		if err != nil {
-			return nil, err
-		}
-		return &obs, nil
-	}
-
-	return nil, nil // No data extracted from other categories
-}

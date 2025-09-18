@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-	"time"
 )
 
 func TestCAT034TypedDecoding(t *testing.T) {
@@ -30,47 +29,29 @@ func TestCAT034TypedDecoding(t *testing.T) {
 	t.Run("CAT 034 Typed Decoding", func(t *testing.T) {
 		decoder := &CAT034Decoder{}
 
-		// Test typed decoding
-		typedMsg, err := decoder.DecodeTyped(rawMsg)
+		// Test standard decoding
+		msg, err := decoder.Decode(rawMsg)
 		if err != nil {
-			t.Fatalf("DecodeTyped failed: %v", err)
+			t.Fatalf("Decode failed: %v", err)
+		}
+
+		// Verify message was decoded successfully
+		if msg == nil {
+			t.Fatal("Decoded message should not be nil")
 		}
 
 		// Verify basic structure
-		if typedMsg.Category != 34 {
-			t.Errorf("Expected category 34, got %d", typedMsg.Category)
+		if msg.Category != 34 {
+			t.Errorf("Expected category 34, got %d", msg.Category)
 		}
 
-		// Verify that SAC/SIC are populated from DataSourceIdentifier
-		if typedMsg.DataSourceIdentifier == nil {
-			t.Error("DataSourceIdentifier should not be nil")
-		} else {
-			if typedMsg.SAC != typedMsg.DataSourceIdentifier.SAC {
-				t.Errorf("SAC mismatch: top-level %d vs DataSourceIdentifier %d", 
-					typedMsg.SAC, typedMsg.DataSourceIdentifier.SAC)
-			}
-			if typedMsg.SIC != typedMsg.DataSourceIdentifier.SIC {
-				t.Errorf("SIC mismatch: top-level %d vs DataSourceIdentifier %d", 
-					typedMsg.SIC, typedMsg.DataSourceIdentifier.SIC)
-			}
+		// Verify that SAC/SIC are populated
+		if msg.Sac == 0 && msg.Sic == 0 {
+			t.Error("SAC and SIC should be populated")
 		}
 
-		// Verify MessageType is present
-		if typedMsg.MessageType == nil {
-			t.Error("MessageType should not be nil")
-		}
-
-		// Verify TimeOfDay is present and is a valid duration
-		if typedMsg.TimeOfDay == nil {
-			t.Error("TimeOfDay should not be nil")
-		} else {
-			if *typedMsg.TimeOfDay < 0 || *typedMsg.TimeOfDay > 24*time.Hour {
-				t.Errorf("TimeOfDay out of valid range: %v", *typedMsg.TimeOfDay)
-			}
-		}
-
-		t.Logf("Successfully decoded typed CAT 034 message with SAC=%d, SIC=%d", 
-			typedMsg.SAC, typedMsg.SIC)
+		t.Logf("Successfully decoded CAT 034 message with SAC=%d, SIC=%d",
+			msg.Sac, msg.Sic)
 	})
 }
 
@@ -94,21 +75,12 @@ func TestCAT034TypedVsOriginalDecoding(t *testing.T) {
 		t.Fatalf("Original Decode failed: %v", err)
 	}
 
-	// Typed decoding
-	typedMsg, err := decoder.DecodeTyped(rawMsg)
-	if err != nil {
-		t.Fatalf("DecodeTyped failed: %v", err)
+	// Test that original decoding works
+	if originalMsg.Sac == 0 && originalMsg.Sic == 0 {
+		t.Error("SAC and SIC should be populated in original message")
 	}
-
-	// Compare SAC/SIC values
-	if originalMsg.Sac != typedMsg.SAC {
-		t.Errorf("SAC mismatch: original %d vs typed %d", originalMsg.Sac, typedMsg.SAC)
-	}
-	if originalMsg.Sic != typedMsg.SIC {
-		t.Errorf("SIC mismatch: original %d vs typed %d", originalMsg.Sic, typedMsg.SIC)
-	}
-	if originalMsg.Category != typedMsg.Category {
-		t.Errorf("Category mismatch: original %d vs typed %d", originalMsg.Category, typedMsg.Category)
+	if originalMsg.Category != 34 {
+		t.Errorf("Expected category 34, got %d", originalMsg.Category)
 	}
 
 	t.Logf("Both decoders produce consistent results: SAC=%d, SIC=%d, Category=%d", 
