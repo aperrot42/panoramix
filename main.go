@@ -13,6 +13,7 @@ import (
 
 	"github.com/aperrot42/panoramix/pkg/asterix"
 	"github.com/aperrot42/panoramix/pkg/internal_format"
+	"github.com/aperrot42/panoramix/pkg/transform/fspec"
 	"github.com/aperrot42/panoramix/pkg/transform/position"
 )
 
@@ -68,6 +69,7 @@ func main() {
 	limit := flag.Int("limit", 0, "Maximum number of messages to parse (0 = unlimited)")
 	jsonOutput := flag.Bool("json", false, "Output as JSON instead of text")
 	positionFilter := flag.Bool("position", false, "Add computed position information to raw ASTERIX messages")
+	fspecFields := flag.Bool("fspec-fields", false, "Add computed FSPEC available fields list to messages")
 	radarConfig := flag.String("radar-config", "radar_config.yaml", "Radar configuration file path")
 	flag.Parse()
 
@@ -125,6 +127,15 @@ func main() {
 			SAC:           asterixMsg.Sac,
 			Items:         asterixMsg.Items,
 			FSPEC:         hex.EncodeToString(asterixMsg.FSPEC),
+		}
+
+		// Apply FSPEC transform if requested
+		if *fspecFields {
+			if outputMsg.Computed == nil {
+				outputMsg.Computed = map[string]interface{}{}
+			}
+			computedFspec := fspec.ComputeAvailableFields(asterixMsg)
+			outputMsg.Computed["fspec_available_fields"] = computedFspec
 		}
 
 		if *positionFilter && positionExtractor != nil {

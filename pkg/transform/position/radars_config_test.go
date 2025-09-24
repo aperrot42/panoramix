@@ -6,7 +6,7 @@ import (
 
 func TestLoadRadarConfig(t *testing.T) {
 	// Test loading the DOLS radar configuration
-	registry, err := LoadRadarConfig("../../radar_config.yaml")
+	registry, err := LoadRadarConfig("../../../radar_config.yaml")
 	if err != nil {
 		t.Fatalf("Failed to load radar config: %v", err)
 	}

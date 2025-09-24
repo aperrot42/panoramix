@@ -151,7 +151,7 @@ func (ae *PositionExtractor) extractFromCAT048(msg *asterix.AsterixMessage, rada
 			Validated   bool
 			Garbled     bool
 		}); ok {
-			obs.WGS84Position.AltitudeFt = float64(flightLevel.RawValue * 25) // 0.25FL * 100 => ft
+			obs.WGS84Position.AltitudeFt = float64(int32(flightLevel.RawValue) * 25) // 0.25FL * 100 => ft
 			obs.WGS84Position.AltitudeSource = "FLIGHT_LEVEL"
 		}
 	}
