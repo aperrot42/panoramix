@@ -1,4 +1,4 @@
-package transform
+package position
 
 import (
 	"testing"
@@ -49,8 +49,8 @@ func TestPositionExtractorIntegration(t *testing.T) {
 				"theta_deg": 31.3330078125,
 			},
 			"I048/042": map[string]interface{}{
-				"x_nm": 50.0,  // X coordinate in nautical miles
-				"y_nm": 82.0,  // Y coordinate in nautical miles
+				"x_nm": 50.0, // X coordinate in nautical miles
+				"y_nm": 82.0, // Y coordinate in nautical miles
 			},
 			"I048/200": map[string]interface{}{
 				"ground_speed_kt": 249.48,
@@ -77,29 +77,29 @@ func TestPositionExtractorIntegration(t *testing.T) {
 	}
 
 	// Verify WGS84 position is computed
-	if obs.WGS84Position.Source != "POLAR" {
-		t.Errorf("Expected WGS84 source 'POLAR', got '%s'", obs.WGS84Position.Source)
+	if obs.WGS84Position.PostionSource != "POLAR" {
+		t.Errorf("Expected WGS84 source 'POLAR', got '%s'", obs.WGS84Position.PostionSource)
 	}
 
 	// Verify WGS84 coordinates are reasonable (should be in Europe)
-	if obs.WGS84Position.Latitude < 45 || obs.WGS84Position.Latitude > 50 {
-		t.Errorf("Expected latitude between 45-50°, got %.6f°", obs.WGS84Position.Latitude)
+	if obs.WGS84Position.Latitude_deg < 45 || obs.WGS84Position.Latitude_deg > 50 {
+		t.Errorf("Expected latitude between 45-50°, got %.6f°", obs.WGS84Position.Latitude_deg)
 	}
 
-	if obs.WGS84Position.Longitude < 5 || obs.WGS84Position.Longitude > 10 {
-		t.Errorf("Expected longitude between 5-10°, got %.6f°", obs.WGS84Position.Longitude)
+	if obs.WGS84Position.Longitude_deg < 5 || obs.WGS84Position.Longitude_deg > 10 {
+		t.Errorf("Expected longitude between 5-10°, got %.6f°", obs.WGS84Position.Longitude_deg)
 	}
 
 	// Verify altitude is computed from flight level
-	expectedAltitude := FlightLevelToMeters(100.0)
-	if obs.WGS84Position.Altitude != expectedAltitude {
-		t.Errorf("Expected altitude %.1f m, got %.1f m", expectedAltitude, obs.WGS84Position.Altitude)
+	expectedAltitude := 10000. // FL100 -> 1000ft
+	if obs.WGS84Position.AltitudeFt != expectedAltitude {
+		t.Errorf("Expected altitude %.1f m, got %.1f m", expectedAltitude, obs.WGS84Position.AltitudeFt)
 	}
 
 	t.Logf("  WGS84: %.6f°, %.6f° (%.0f m)",
-		obs.WGS84Position.Latitude,
-		obs.WGS84Position.Longitude,
-		obs.WGS84Position.Altitude)
+		obs.WGS84Position.Latitude_deg,
+		obs.WGS84Position.Longitude_deg,
+		obs.WGS84Position.AltitudeFt)
 }
 
 func TestRadarRegistry(t *testing.T) {

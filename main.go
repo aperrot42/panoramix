@@ -13,7 +13,7 @@ import (
 
 	"github.com/aperrot42/panoramix/pkg/asterix"
 	"github.com/aperrot42/panoramix/pkg/internal_format"
-	"github.com/aperrot42/panoramix/pkg/transform"
+	"github.com/aperrot42/panoramix/pkg/transform/position"
 )
 
 // PrecisionTime provides millisecond-precision JSON marshaling for timestamps
@@ -53,11 +53,11 @@ func outputText(data interface{}) {
 		fmt.Printf("Msg %3d: CAT=%d Port=%d SIC=%d SAC=%d Items=%d Time=%s\n",
 			v.MessageNumber, v.Category, v.Port, v.SIC, v.SAC,
 			len(v.Items), v.Timestamp.Format("15:04:05.000"))
-	case transform.Position:
+	case position.Position:
 		fmt.Printf("Aircraft: SIC=%d SAC=%d Time=%s WGS84=(%.6f,%.6f) Alt=%.0fm\n",
 			v.RadarSIC, v.RadarSAC, v.Timestamp.Format("15:04:05.000"),
-			v.WGS84Position.Latitude, v.WGS84Position.Longitude,
-			v.WGS84Position.Altitude)
+			v.WGS84Position.Latitude_deg, v.WGS84Position.Longitude_deg,
+			v.WGS84Position.AltitudeFt)
 	default:
 		fmt.Printf("Unknown data type: %T\n", data)
 	}
@@ -87,10 +87,10 @@ func main() {
 	reader := internal_format.NewReaderWithBaseDate(file, baseDate)
 
 	// Initialize filters
-	var positionExtractor *transform.PositionExtractor
+	var positionExtractor *position.PositionExtractor
 	if *positionFilter {
 		var err error
-		positionExtractor, err = transform.NewPositionExtractorFromConfig(*radarConfig)
+		positionExtractor, err = position.NewPositionExtractorFromConfig(*radarConfig)
 		if err != nil {
 			log.Fatalf("Failed to initialize position extractor with config: %v", err)
 		}

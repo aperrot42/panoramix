@@ -41,6 +41,7 @@ func (d *BDS30Decoder) Decode(data []byte) (map[string]interface{}, error) {
 
 	// Bits 16-19: Threat type
 	threatType := ExtractBits(data, 15, 4)
+	fields["threat_type_raw"] = threatType
 	switch threatType {
 	case 0:
 		fields["threat_type"] = "No threat"
@@ -72,6 +73,6 @@ func (d *BDS30Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	}
 
 	// Bits 51-56: Reserved
-	
+
 	return fields, nil
 }

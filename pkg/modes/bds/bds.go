@@ -91,7 +91,7 @@ func ExtractBits(data []byte, startBit, numBits int) uint32 {
 // ExtractSignedBits extracts signed bits (two's complement)
 func ExtractSignedBits(data []byte, startBit, numBits int) int32 {
 	value := ExtractBits(data, startBit, numBits)
-	
+
 	// Check if sign bit is set
 	if value&(1<<(numBits-1)) != 0 {
 		// Extend sign bit
@@ -99,28 +99,4 @@ func ExtractSignedBits(data []byte, startBit, numBits int) int32 {
 		return int32(value | uint32(mask))
 	}
 	return int32(value)
-}
-
-// Gray2Binary converts Gray code to binary
-func Gray2Binary(gray uint32) uint32 {
-	binary := gray
-	for gray >>= 1; gray != 0; gray >>= 1 {
-		binary ^= gray
-	}
-	return binary
-}
-
-// NauticalMilesToMeters converts nautical miles to meters
-func NauticalMilesToMeters(nm float64) float64 {
-	return nm * 1852.0
-}
-
-// FeetToMeters converts feet to meters
-func FeetToMeters(ft float64) float64 {
-	return ft * 0.3048
-}
-
-// KnotsToMetersPerSecond converts knots to m/s
-func KnotsToMetersPerSecond(knots float64) float64 {
-	return knots * 0.514444
 }

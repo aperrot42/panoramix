@@ -66,22 +66,19 @@ func equalBytes(a, b []byte) bool {
 }
 
 func TestWalkFSPEC(t *testing.T) {
-	fieldTable := map[int]struct {
-		Name    string
-		Decoder ItemDecoder[any]
-	}{
-		1: {"I048/010", func(data []byte) (any, int, error) {
+	fieldTable := map[int]DataItem{
+		1: NewDataItem("I048/010", func(data []byte) (interface{}, int, error) {
 			if len(data) < 2 {
 				return nil, 0, fmt.Errorf("too short")
 			}
 			return []byte{data[0], data[1]}, 2, nil
-		}},
-		3: {"I048/140", func(data []byte) (any, int, error) {
+		}),
+		3: NewDataItem("I048/140", func(data []byte) (interface{}, int, error) {
 			if len(data) < 3 {
 				return nil, 0, fmt.Errorf("too short")
 			}
 			return int(data[0])<<16 | int(data[1])<<8 | int(data[2]), 3, nil
-		}},
+		}),
 	}
 
 	// FSPEC: bit 1 and bit 3 set (bit positions 7 and 5), FX=0

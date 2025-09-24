@@ -7,3 +7,28 @@ type ItemDecoder[T any] func(data []byte) (T, int, error)
 type Decoder interface {
 	Decode(msg *RawAsterixMessage) (*AsterixMessage, error)
 }
+
+// DataItem represents a single ASTERIX data item with its name and decoder
+type DataItem struct {
+	Name    string
+	Decoder ItemDecoder[any]
+}
+
+// NewDataItem creates a DataItem with a decoder function that matches the common pattern
+func NewDataItem(name string, decoderFunc func([]byte) (interface{}, int, error)) DataItem {
+	return DataItem{
+		Name:    name,
+		Decoder: func(data []byte) (any, int, error) { return decoderFunc(data) },
+	}
+}
+
+// NewDataItemTyped creates a DataItem with a typed decoder function (converts to interface{})
+func NewDataItemTyped[T any](name string, decoderFunc func([]byte) (T, int, error)) DataItem {
+	return DataItem{
+		Name: name,
+		Decoder: func(data []byte) (any, int, error) {
+			result, consumed, err := decoderFunc(data)
+			return result, consumed, err
+		},
+	}
+}

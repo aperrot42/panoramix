@@ -42,25 +42,22 @@ func (d *CAT034Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 }
 
 
-var cat034Items = map[int]struct {
-	Name    string
-	Decoder ItemDecoder[any]
-}{
+var cat034Items = map[int]DataItem{
 	// CAT 034 User Application Profile - 14 FRNs
-	1:  {"I034/010", func(data []byte) (any, int, error) { return decodeDataSourceIdentifier034(data) }}, // FRN 1: Data Source Identifier
-	2:  {"I034/000", func(data []byte) (any, int, error) { return decodeMessageType034(data) }},          // FRN 2: Message Type
-	3:  {"I034/030", func(data []byte) (any, int, error) { return decodeTimeOfDay034(data) }},            // FRN 3: Time of Day
-	4:  {"I034/020", func(data []byte) (any, int, error) { return decodeSectorNumber034(data) }},         // FRN 4: Sector Number
-	5:  {"I034/041", func(data []byte) (any, int, error) { return decodeAntennaRotationSpeed034(data) }}, // FRN 5: Antenna Rotation Speed
-	6:  {"I034/050", func(data []byte) (any, int, error) { return decodeSystemConfiguration034(data) }},  // FRN 6: System Configuration and Status
-	7:  {"I034/060", func(data []byte) (any, int, error) { return decodeSystemProcessingMode034(data) }}, // FRN 7: System Processing Mode
-	8:  {"I034/070", func(data []byte) (any, int, error) { return decodeMessageCountValues034(data) }},   // FRN 8: Message Count Values
-	9:  {"I034/100", func(data []byte) (any, int, error) { return decodeGenericPolarWindow034(data) }},   // FRN 9: Generic Polar Window
-	10: {"I034/110", func(data []byte) (any, int, error) { return decodeDataFilter034(data) }},           // FRN 10: Data Filter
-	11: {"I034/120", func(data []byte) (any, int, error) { return decode3DPositionOfSource034(data) }},   // FRN 11: 3D-Position of Data Source
-	12: {"I034/090", func(data []byte) (any, int, error) { return decodeCollimationError034(data) }},     // FRN 12: Collimation Error
-	13: {"I034/RE", func(data []byte) (any, int, error) { return decodeReservedExpansion034(data) }},     // FRN 13: Reserved Expansion Field
-	14: {"I034/SP", func(data []byte) (any, int, error) { return decodeSpecialPurpose034(data) }},        // FRN 14: Special Purpose Field
+	1:  NewDataItemTyped("I034/010", decodeDataSourceIdentifier034), // FRN 1: Data Source Identifier
+	2:  NewDataItemTyped("I034/000", decodeMessageType034),          // FRN 2: Message Type
+	3:  NewDataItemTyped("I034/030", decodeTimeOfDay034),            // FRN 3: Time of Day
+	4:  NewDataItemTyped("I034/020", decodeSectorNumber034),         // FRN 4: Sector Number
+	5:  NewDataItemTyped("I034/041", decodeAntennaRotationSpeed034), // FRN 5: Antenna Rotation Speed
+	6:  NewDataItemTyped("I034/050", decodeSystemConfiguration034),  // FRN 6: System Configuration and Status
+	7:  NewDataItemTyped("I034/060", decodeSystemProcessingMode034), // FRN 7: System Processing Mode
+	8:  NewDataItemTyped("I034/070", decodeMessageCountValues034),   // FRN 8: Message Count Values
+	9:  NewDataItemTyped("I034/100", decodeGenericPolarWindow034),   // FRN 9: Generic Polar Window
+	10: NewDataItemTyped("I034/110", decodeDataFilter034),           // FRN 10: Data Filter
+	11: NewDataItemTyped("I034/120", decode3DPositionOfSource034),   // FRN 11: 3D-Position of Data Source
+	12: NewDataItemTyped("I034/090", decodeCollimationError034),     // FRN 12: Collimation Error
+	13: NewDataItemTyped("I034/RE", decodeReservedExpansion034),     // FRN 13: Reserved Expansion Field
+	14: NewDataItemTyped("I034/SP", decodeSpecialPurpose034),        // FRN 14: Special Purpose Field
 }
 
 // I034/010 - Data Source Identifier

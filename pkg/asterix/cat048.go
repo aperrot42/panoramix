@@ -37,48 +37,45 @@ func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 	return AsterixMessage, nil
 }
 
-var cat048Items = map[int]struct {
-	Name    string
-	Decoder ItemDecoder[any]
-}{
+var cat048Items = map[int]DataItem{
 	// First FSPEC octet (FRN 1-7 + FX)
-	1: {"I048/010", func(data []byte) (any, int, error) { return decodeDataSourceIdentifier(data) }},               // FRN 1: Data Source Identifier
-	2: {"I048/140", func(data []byte) (any, int, error) { return decodeTimeOfDay(data) }},                          // FRN 2: Time-of-Day
-	3: {"I048/020", func(data []byte) (any, int, error) { return decodeTargetReportDescriptor(data) }},             // FRN 3: Type and Properties of the Target Report
-	4: {"I048/040", func(data []byte) (any, int, error) { return decodeMeasuredPositionInPolarCoordinates(data) }}, // FRN 4: Measured Position in Slant Polar Coordinates
-	5: {"I048/070", func(data []byte) (any, int, error) { return decodeMode3ACode(data) }},                         // FRN 5: Mode-3/A Code in Octal Representation
-	6: {"I048/090", func(data []byte) (any, int, error) { return decodeFlightLevel(data) }},                        // FRN 6: Flight Level in Binary Representation
-	7: {"I048/130", func(data []byte) (any, int, error) { return decodeRadarPlotCharacteristics(data) }},           // FRN 7: Radar Plot Characteristics
+	1: NewDataItem("I048/010", decodeDataSourceIdentifier),               // FRN 1: Data Source Identifier
+	2: NewDataItem("I048/140", decodeTimeOfDay),                          // FRN 2: Time-of-Day
+	3: NewDataItem("I048/020", decodeTargetReportDescriptor),             // FRN 3: Type and Properties of the Target Report
+	4: NewDataItem("I048/040", decodeMeasuredPositionInPolarCoordinates), // FRN 4: Measured Position in Slant Polar Coordinates
+	5: NewDataItem("I048/070", decodeMode3ACode),                         // FRN 5: Mode-3/A Code in Octal Representation
+	6: NewDataItem("I048/090", decodeFlightLevel),                        // FRN 6: Flight Level in Binary Representation
+	7: NewDataItem("I048/130", decodeRadarPlotCharacteristics),           // FRN 7: Radar Plot Characteristics
 	//FX = Field Extension Indicator
 
 	// Second FSPEC octet (FRN 8-14 + FX)
-	8:  {"I048/220", func(data []byte) (any, int, error) { return decodeAircraftAddress(data) }},             // FRN 8: Aircraft Address
-	9:  {"I048/240", func(data []byte) (any, int, error) { return decodeAircraftIdentification(data) }},      // FRN 9: Aircraft Identification
-	10: {"I048/250", func(data []byte) (any, int, error) { return decodeBDSRegisterData(data) }},             // FRN 10: Mode S MB Data
-	11: {"I048/161", func(data []byte) (any, int, error) { return decodeTrackNumber(data) }},                 // FRN 11: Track Number
-	12: {"I048/042", func(data []byte) (any, int, error) { return decodeCalculatedPositionCartesian(data) }}, // FRN 12: Calculated Position in Cartesian Coordinates
-	13: {"I048/200", func(data []byte) (any, int, error) { return decodeCalculatedTrackVelocity(data) }},     // FRN 13: Calculated Track Velocity in Polar Representation
-	14: {"I048/170", func(data []byte) (any, int, error) { return decodeTrackStatus(data) }},                 // FRN 14: Track Status
+	8:  NewDataItem("I048/220", decodeAircraftAddress),             // FRN 8: Aircraft Address
+	9:  NewDataItem("I048/240", decodeAircraftIdentification),      // FRN 9: Aircraft Identification
+	10: NewDataItem("I048/250", decodeBDSRegisterData),             // FRN 10: Mode S MB Data
+	11: NewDataItem("I048/161", decodeTrackNumber),                 // FRN 11: Track Number
+	12: NewDataItem("I048/042", decodeCalculatedPositionCartesian), // FRN 12: Calculated Position in Cartesian Coordinates
+	13: NewDataItem("I048/200", decodeCalculatedTrackVelocity),     // FRN 13: Calculated Track Velocity in Polar Representation
+	14: NewDataItem("I048/170", decodeTrackStatus),                 // FRN 14: Track Status
 	//FX = Field Extension Indicator
 
 	// Third FSPEC octet (FRN 15-21 + FX)
-	15: {"I048/210", func(data []byte) (any, int, error) { return decodeTrackQuality(data) }},             // FRN 15: Track Quality
-	16: {"I048/030", func(data []byte) (any, int, error) { return decodeWarningErrorConditions(data) }},   // FRN 16: Warning/Error Conditions/Target Classification
-	17: {"I048/080", func(data []byte) (any, int, error) { return decodeMode3ACodeConfidence(data) }},     // FRN 17: Mode-3/A Code Confidence Indicator
-	18: {"I048/100", func(data []byte) (any, int, error) { return decodeModeCodeConfidence(data) }},       // FRN 18: Mode-C Code and Confidence Indicator
-	19: {"I048/110", func(data []byte) (any, int, error) { return decodeHeightMeasured3D(data) }},         // FRN 19: Height Measured by 3D Radar
-	20: {"I048/120", func(data []byte) (any, int, error) { return decodeRadialDopplerSpeed(data) }},       // FRN 20: Radial Doppler Speed
-	21: {"I048/230", func(data []byte) (any, int, error) { return decodeCommunicationsCapability(data) }}, // FRN 21: Communications / ACAS Capability and Flight Status
+	15: NewDataItem("I048/210", decodeTrackQuality),             // FRN 15: Track Quality
+	16: NewDataItem("I048/030", decodeWarningErrorConditions),   // FRN 16: Warning/Error Conditions/Target Classification
+	17: NewDataItem("I048/080", decodeMode3ACodeConfidence),     // FRN 17: Mode-3/A Code Confidence Indicator
+	18: NewDataItem("I048/100", decodeModeCodeConfidence),       // FRN 18: Mode-C Code and Confidence Indicator
+	19: NewDataItem("I048/110", decodeHeightMeasured3D),         // FRN 19: Height Measured by 3D Radar
+	20: NewDataItem("I048/120", decodeRadialDopplerSpeed),       // FRN 20: Radial Doppler Speed
+	21: NewDataItem("I048/230", decodeCommunicationsCapability), // FRN 21: Communications / ACAS Capability and Flight Status
 	//FX = Field Extension Indicator
 
 	// Fourth FSPEC octet (FRN 22-28 + FX)
-	22: {"I048/260", func(data []byte) (any, int, error) { return decodeACASResolutionAdvisory(data) }}, // FRN 22: ACAS Resolution Advisory Report
-	23: {"I048/055", func(data []byte) (any, int, error) { return decodeMode1Code(data) }},              // FRN 23: Mode-1 Code in Octal Representation
-	24: {"I048/050", func(data []byte) (any, int, error) { return decodeMode2Code(data) }},              // FRN 24: Mode-2 Code in Octal Representation
-	25: {"I048/065", func(data []byte) (any, int, error) { return decodeMode1CodeConfidence(data) }},    // FRN 25: Mode-1 Code Confidence Indicator
-	26: {"I048/060", func(data []byte) (any, int, error) { return decodeMode2CodeConfidence(data) }},    // FRN 26: Mode-2 Code Confidence Indicator
-	27: {"I048/SP", func(data []byte) (any, int, error) { return decodeSpecialPurposeField(data) }},     // FRN 27: Special Purpose Field
-	28: {"I048/RE", func(data []byte) (any, int, error) { return decodeReservedExpansionField(data) }},  // FRN 28: Reserved Expansion Field
+	22: NewDataItem("I048/260", decodeACASResolutionAdvisory), // FRN 22: ACAS Resolution Advisory Report
+	23: NewDataItem("I048/055", decodeMode1Code),              // FRN 23: Mode-1 Code in Octal Representation
+	24: NewDataItem("I048/050", decodeMode2Code),              // FRN 24: Mode-2 Code in Octal Representation
+	25: NewDataItem("I048/065", decodeMode1CodeConfidence),    // FRN 25: Mode-1 Code Confidence Indicator
+	26: NewDataItem("I048/060", decodeMode2CodeConfidence),    // FRN 26: Mode-2 Code Confidence Indicator
+	27: NewDataItem("I048/SP", decodeSpecialPurposeField),     // FRN 27: Special Purpose Field
+	28: NewDataItem("I048/RE", decodeReservedExpansionField),  // FRN 28: Reserved Expansion Field
 	//FX = Field Extension Indicator
 }
 
@@ -161,11 +158,11 @@ func decodeTimeOfDay(data []byte) (interface{}, int, error) {
 	}
 	v := uint24(data[:3])
 	// Unit: 1/128 seconds so convert to nanoseconds
-	duration := time.Duration(float64(v) * float64(time.Second) / 128.0)
+	duration := time.Duration((time.Duration(v) * time.Second) / 128)
 
 	return map[string]interface{}{
-		"raw_value": v,        // Raw value in 1/128 second units
-		"duration":  duration, // Converted as Duration (includes unit info)
+		"raw_value":   v,        // Raw value in 1/128 second units
+		"duration_ns": duration, // Converted as time.Duration
 	}, 3, nil
 }
 
@@ -252,7 +249,7 @@ func decodeFlightLevel(data []byte) (interface{}, int, error) {
 	// Bits 14–1: 14-bit signed integer
 	raw := (uint16(b1&0x3F) << 8) | uint16(b2) // clear top 2 bits (V & G)
 
-	// Sign-extend using new utility function
+	// Sign-extend
 	signedVal := SignExtend14To16(raw)
 
 	return struct {
@@ -273,7 +270,7 @@ func decodeAircraftAddress(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/220")
 	}
 	addr := int24(data[0:3])
-	return fmt.Sprintf("0x%06X", addr), 3, nil
+	return fmt.Sprintf("%06x", addr), 3, nil
 }
 
 func decodeAircraftIdentification(data []byte) (interface{}, int, error) {

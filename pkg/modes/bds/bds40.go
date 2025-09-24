@@ -18,7 +18,6 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		altCode := ExtractBits(data, 1, 12)
 		altitude := float64(altCode) * 16.0 // 16 ft resolution
 		fields["selected_altitude_ft"] = altitude
-		fields["selected_altitude_m"] = FeetToMeters(altitude)
 		fields["selected_altitude_valid"] = true
 	} else {
 		fields["selected_altitude_valid"] = false
@@ -30,7 +29,6 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		altCode := ExtractBits(data, 14, 12)
 		altitude := float64(altCode) * 16.0 // 16 ft resolution
 		fields["fms_altitude_ft"] = altitude
-		fields["fms_altitude_m"] = FeetToMeters(altitude)
 		fields["fms_altitude_valid"] = true
 	} else {
 		fields["fms_altitude_valid"] = false
@@ -42,7 +40,6 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		pressCode := ExtractBits(data, 27, 12)
 		pressure := float64(pressCode)*0.1 + 800.0 // 0.1 mb resolution, 800 mb offset
 		fields["baro_pressure_mb"] = pressure
-		fields["baro_pressure_inhg"] = pressure * 0.02953 // Convert to inHg
 		fields["baro_pressure_valid"] = true
 	} else {
 		fields["baro_pressure_valid"] = false
@@ -69,6 +66,7 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	if ExtractBits(data, 53, 1) == 1 {
 		// Bits 55-56: Target altitude source
 		source := ExtractBits(data, 54, 2)
+		fields["target_altitude_source_raw"] = source
 		switch source {
 		case 0:
 			fields["target_altitude_source"] = "Unknown"

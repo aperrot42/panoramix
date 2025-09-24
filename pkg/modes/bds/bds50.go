@@ -40,7 +40,6 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		speedRaw := ExtractBits(data, 24, 10)
 		groundSpeed := float64(speedRaw) * 2.0 // Resolution: 2 knots
 		fields["ground_speed_kt"] = groundSpeed
-		fields["ground_speed_ms"] = KnotsToMetersPerSecond(groundSpeed)
 		fields["ground_speed_valid"] = true
 	} else {
 		fields["ground_speed_valid"] = false
@@ -63,7 +62,6 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		tasRaw := ExtractBits(data, 46, 10)
 		trueAirspeed := float64(tasRaw) * 2.0 // Resolution: 2 knots
 		fields["true_airspeed_kt"] = trueAirspeed
-		fields["true_airspeed_ms"] = KnotsToMetersPerSecond(trueAirspeed)
 		fields["true_airspeed_valid"] = true
 	} else {
 		fields["true_airspeed_valid"] = false

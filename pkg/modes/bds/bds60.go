@@ -29,7 +29,6 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		iasRaw := ExtractBits(data, 13, 10)
 		indicatedAirspeed := float64(iasRaw) // Resolution: 1 knot
 		fields["indicated_airspeed_kt"] = indicatedAirspeed
-		fields["indicated_airspeed_ms"] = KnotsToMetersPerSecond(indicatedAirspeed)
 		fields["indicated_airspeed_valid"] = true
 	} else {
 		fields["indicated_airspeed_valid"] = false
@@ -52,7 +51,6 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		rateRaw := ExtractSignedBits(data, 35, 10)
 		baroRate := float64(rateRaw) * 32.0 // Resolution: 32 ft/min
 		fields["baro_altitude_rate_fpm"] = baroRate
-		fields["baro_altitude_rate_ms"] = baroRate * 0.00508 // Convert to m/s
 		fields["baro_altitude_rate_valid"] = true
 	} else {
 		fields["baro_altitude_rate_valid"] = false
@@ -64,7 +62,6 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		ivvRaw := ExtractSignedBits(data, 46, 10)
 		inertialVV := float64(ivvRaw) * 32.0 // Resolution: 32 ft/min
 		fields["inertial_vertical_velocity_fpm"] = inertialVV
-		fields["inertial_vertical_velocity_ms"] = inertialVV * 0.00508 // Convert to m/s
 		fields["inertial_vertical_velocity_valid"] = true
 	} else {
 		fields["inertial_vertical_velocity_valid"] = false

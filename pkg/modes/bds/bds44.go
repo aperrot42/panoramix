@@ -23,8 +23,6 @@ func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 3-11: Wind speed (9 bits)
 		windSpeed := ExtractBits(data, 2, 9) // Resolution: 1 knot
 		fields["wind_speed_kt"] = windSpeed
-		fields["wind_speed_ms"] = KnotsToMetersPerSecond(float64(windSpeed))
-		
 		// Bits 12-20: Wind direction (9 bits)
 		windDir := float64(ExtractBits(data, 11, 9)) * 180.0 / 256.0 // Resolution: 180/256 degrees
 		fields["wind_direction_deg"] = windDir
@@ -59,6 +57,7 @@ func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	if ExtractBits(data, 44, 1) == 1 {
 		// Bits 46-47: Turbulence (2 bits)
 		turb := ExtractBits(data, 45, 2)
+		fields["turbulence_raw"] = turb
 		switch turb {
 		case 0:
 			fields["turbulence"] = "None"
@@ -85,6 +84,6 @@ func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	}
 
 	// Bits 55-56: Reserved
-	
+
 	return fields, nil
 }
