@@ -11,9 +11,10 @@ go build .
 
 **Run:**
 ```bash
-./rectools -filename data.if
-./rectools -filename data.if -json
-./rectools -filename data.if -limit 100
+./rectools --filename data.if
+./rectools --filename data.if --json
+./rectools --filename data.if --limit 100
+./rectools --filename data.if --limit 100 --position
 ```
 
 ## What it does
@@ -22,6 +23,31 @@ go build .
 - Decodes ASTERIX CAT 034 (system status) and CAT 048 (radar targets)
 - Extracts aircraft data from Mode S BDS registers
 - Outputs text or JSON format
+
+### Additional filters 
+
+#### Position
+
+Position filter (--position) adds a computed wgs84 position extracted from CAT048 data using the best available positionning data :
+
+```json
+    "computed": {
+        "position": {
+            "wgs84_position": {
+                "latitude_deg": 47.78745995705229,
+                "longitude_deg": 7.3358434913021755,
+                "position_source": "POLAR",
+                "altitude_ft": 10000,
+                "altitude_source": "FLIGHT_LEVEL"
+            },
+            "timestamp": "2025-05-15T12:00:00.000Z",
+            "radar_sic": 33,
+            "radar_sac": 40
+        }
+    }
+```
+
+
 
 ## Documentation
 
