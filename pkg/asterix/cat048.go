@@ -269,7 +269,7 @@ func decodeAircraftAddress(data []byte) (interface{}, int, error) {
 	if len(data) < 3 {
 		return nil, 0, fmt.Errorf("too short for I048/220")
 	}
-	addr := int24(data[0:3])
+	addr := uint24(data[0:3])
 	return fmt.Sprintf("%06x", addr), 3, nil
 }
 

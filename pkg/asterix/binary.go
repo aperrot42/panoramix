@@ -53,6 +53,6 @@ func FormatTransponderCodeFromBytes(data []byte, offset int) string {
 // Common ASTERIX constants
 const (
 	// ASTERIX specific masks
-	Mask13Bits = 0x1FFF // Transponder codes 
+	Mask13Bits = 0x1FFF // Transponder codes
 	Mask14Bits = 0x3FFF // Flight levels
 )
