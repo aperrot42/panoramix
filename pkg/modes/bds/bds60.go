@@ -9,18 +9,18 @@ func (d *BDS60Decoder) BDSCode() (uint8, uint8) {
 	return 6, 0
 }
 
-func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
-	fields := make(map[string]interface{})
+func (d *BDS60Decoder) Decode(data []byte) (interface{}, error) {
+	decoded := BDS60Decoded{}
 
 	// Bit 1: Status of magnetic heading
 	if ExtractBits(data, 0, 1) == 1 {
 		// Bits 2-12: Magnetic heading (11 bits)
 		headingRaw := ExtractBits(data, 1, 11)
 		magHeading := float64(headingRaw) * 90.0 / 512.0 // Resolution: 90/512 degrees
-		fields["magnetic_heading_deg"] = magHeading
-		fields["magnetic_heading_valid"] = true
+		decoded.MagneticHeadingDeg = magHeading
+		decoded.MagneticHeadingValid = true
 	} else {
-		fields["magnetic_heading_valid"] = false
+		decoded.MagneticHeadingValid = false
 	}
 
 	// Bit 13: Status of indicated airspeed
@@ -28,10 +28,10 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 14-23: Indicated airspeed (10 bits)
 		iasRaw := ExtractBits(data, 13, 10)
 		indicatedAirspeed := float64(iasRaw) // Resolution: 1 knot
-		fields["indicated_airspeed_kt"] = indicatedAirspeed
-		fields["indicated_airspeed_valid"] = true
+		decoded.IndicatedAirspeedKt = indicatedAirspeed
+		decoded.IndicatedAirspeedValid = true
 	} else {
-		fields["indicated_airspeed_valid"] = false
+		decoded.IndicatedAirspeedValid = false
 	}
 
 	// Bit 24: Status of Mach number
@@ -39,10 +39,10 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 25-34: Mach number (10 bits)
 		machRaw := ExtractBits(data, 24, 10)
 		machNumber := float64(machRaw) * 2.048 / 512.0 // Resolution: 2.048/512
-		fields["mach_number"] = machNumber
-		fields["mach_number_valid"] = true
+		decoded.MachNumber = machNumber
+		decoded.MachNumberValid = true
 	} else {
-		fields["mach_number_valid"] = false
+		decoded.MachNumberValid = false
 	}
 
 	// Bit 35: Status of barometric altitude rate
@@ -50,10 +50,10 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 36-45: Barometric altitude rate (10 bits, signed)
 		rateRaw := ExtractSignedBits(data, 35, 10)
 		baroRate := float64(rateRaw) * 32.0 // Resolution: 32 ft/min
-		fields["baro_altitude_rate_fpm"] = baroRate
-		fields["baro_altitude_rate_valid"] = true
+		decoded.BaroAltitudeRateFpm = baroRate
+		decoded.BaroAltitudeRateValid = true
 	} else {
-		fields["baro_altitude_rate_valid"] = false
+		decoded.BaroAltitudeRateValid = false
 	}
 
 	// Bit 46: Status of inertial vertical velocity
@@ -61,11 +61,11 @@ func (d *BDS60Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 47-56: Inertial vertical velocity (10 bits, signed)
 		ivvRaw := ExtractSignedBits(data, 46, 10)
 		inertialVV := float64(ivvRaw) * 32.0 // Resolution: 32 ft/min
-		fields["inertial_vertical_velocity_fpm"] = inertialVV
-		fields["inertial_vertical_velocity_valid"] = true
+		decoded.InertialVerticalVelocityFpm = inertialVV
+		decoded.InertialVerticalVelocityValid = true
 	} else {
-		fields["inertial_vertical_velocity_valid"] = false
+		decoded.InertialVerticalVelocityValid = false
 	}
 
-	return fields, nil
+	return decoded, nil
 }

@@ -9,18 +9,19 @@ func (d *BDS50Decoder) BDSCode() (uint8, uint8) {
 	return 5, 0
 }
 
-func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
-	fields := make(map[string]interface{})
+
+func (d *BDS50Decoder) Decode(data []byte) (interface{}, error) {
+	decoded := BDS50Decoded{}
 
 	// Bit 1: Status of roll angle
 	if ExtractBits(data, 0, 1) == 1 {
 		// Bits 2-11: Roll angle (10 bits, signed)
 		rollRaw := ExtractSignedBits(data, 1, 10)
 		rollAngle := float64(rollRaw) * 45.0 / 256.0 // Resolution: 45/256 degrees
-		fields["roll_angle_deg"] = rollAngle
-		fields["roll_angle_valid"] = true
+		decoded.RollAngleDeg = rollAngle
+		decoded.RollAngleValid = true
 	} else {
-		fields["roll_angle_valid"] = false
+		decoded.RollAngleValid = false
 	}
 
 	// Bit 12: Status of true track angle
@@ -28,10 +29,10 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 13-23: True track angle (11 bits)
 		trackRaw := ExtractBits(data, 12, 11)
 		trackAngle := float64(trackRaw) * 90.0 / 512.0 // Resolution: 90/512 degrees
-		fields["true_track_angle_deg"] = trackAngle
-		fields["true_track_angle_valid"] = true
+		decoded.TrueTrackAngleDeg = trackAngle
+		decoded.TrueTrackAngleValid = true
 	} else {
-		fields["true_track_angle_valid"] = false
+		decoded.TrueTrackAngleValid = false
 	}
 
 	// Bit 24: Status of ground speed
@@ -39,10 +40,10 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 25-34: Ground speed (10 bits)
 		speedRaw := ExtractBits(data, 24, 10)
 		groundSpeed := float64(speedRaw) * 2.0 // Resolution: 2 knots
-		fields["ground_speed_kt"] = groundSpeed
-		fields["ground_speed_valid"] = true
+		decoded.GroundSpeedKt = groundSpeed
+		decoded.GroundSpeedValid = true
 	} else {
-		fields["ground_speed_valid"] = false
+		decoded.GroundSpeedValid = false
 	}
 
 	// Bit 35: Status of track angle rate
@@ -50,10 +51,10 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 36-45: Track angle rate (10 bits, signed)
 		rateRaw := ExtractSignedBits(data, 35, 10)
 		trackRate := float64(rateRaw) * 8.0 / 256.0 // Resolution: 8/256 degrees/second
-		fields["track_angle_rate_deg_s"] = trackRate
-		fields["track_angle_rate_valid"] = true
+		decoded.TrackAngleRateDegS = trackRate
+		decoded.TrackAngleRateValid = true
 	} else {
-		fields["track_angle_rate_valid"] = false
+		decoded.TrackAngleRateValid = false
 	}
 
 	// Bit 46: Status of true airspeed
@@ -61,11 +62,11 @@ func (d *BDS50Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 47-56: True airspeed (10 bits)
 		tasRaw := ExtractBits(data, 46, 10)
 		trueAirspeed := float64(tasRaw) * 2.0 // Resolution: 2 knots
-		fields["true_airspeed_kt"] = trueAirspeed
-		fields["true_airspeed_valid"] = true
+		decoded.TrueAirspeedKt = trueAirspeed
+		decoded.TrueAirspeedValid = true
 	} else {
-		fields["true_airspeed_valid"] = false
+		decoded.TrueAirspeedValid = false
 	}
 
-	return fields, nil
+	return decoded, nil
 }

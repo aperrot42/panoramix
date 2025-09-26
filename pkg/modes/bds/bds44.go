@@ -7,28 +7,28 @@ func (d *BDS44Decoder) BDSCode() (uint8, uint8) {
 	return 4, 4
 }
 
-func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
-	fields := make(map[string]interface{})
+func (d *BDS44Decoder) Decode(data []byte) (interface{}, error) {
+	decoded := BDS44Decoded{}
 
 	// Bit 1: Figure of Merit/Source
 	fom := ExtractBits(data, 0, 1)
 	if fom == 0 {
-		fields["wind_source"] = "INS"
+		decoded.WindSource = "INS"
 	} else {
-		fields["wind_source"] = "FMS"
+		decoded.WindSource = "FMS"
 	}
 
 	// Bit 2: Status of wind speed and direction
 	if ExtractBits(data, 1, 1) == 1 {
 		// Bits 3-11: Wind speed (9 bits)
 		windSpeed := ExtractBits(data, 2, 9) // Resolution: 1 knot
-		fields["wind_speed_kt"] = windSpeed
+		decoded.WindSpeedKt = windSpeed
 		// Bits 12-20: Wind direction (9 bits)
 		windDir := float64(ExtractBits(data, 11, 9)) * 180.0 / 256.0 // Resolution: 180/256 degrees
-		fields["wind_direction_deg"] = windDir
-		fields["wind_valid"] = true
+		decoded.WindDirectionDeg = windDir
+		decoded.WindValid = true
 	} else {
-		fields["wind_valid"] = false
+		decoded.WindValid = false
 	}
 
 	// Bit 21: Status of static air temperature
@@ -36,10 +36,10 @@ func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 22-32: Static air temperature (11 bits, signed)
 		tempRaw := ExtractSignedBits(data, 21, 11)
 		temperature := float64(tempRaw) * 0.25 // Resolution: 0.25 degrees Celsius
-		fields["static_air_temperature_c"] = temperature
-		fields["static_air_temperature_valid"] = true
+		decoded.StaticAirTemperatureC = temperature
+		decoded.StaticAirTemperatureValid = true
 	} else {
-		fields["static_air_temperature_valid"] = false
+		decoded.StaticAirTemperatureValid = false
 	}
 
 	// Bit 33: Status of average static pressure
@@ -47,43 +47,43 @@ func (d *BDS44Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 34-44: Average static pressure (11 bits)
 		pressRaw := ExtractBits(data, 33, 11)
 		pressure := float64(pressRaw) // Resolution: 1 hPa
-		fields["average_static_pressure_hpa"] = pressure
-		fields["average_static_pressure_valid"] = true
+		decoded.AverageStaticPressureHpa = pressure
+		decoded.AverageStaticPressureValid = true
 	} else {
-		fields["average_static_pressure_valid"] = false
+		decoded.AverageStaticPressureValid = false
 	}
 
 	// Bit 45: Status of turbulence
 	if ExtractBits(data, 44, 1) == 1 {
 		// Bits 46-47: Turbulence (2 bits)
 		turb := ExtractBits(data, 45, 2)
-		fields["turbulence_raw"] = turb
+		decoded.TurbulenceRaw = turb
 		switch turb {
 		case 0:
-			fields["turbulence"] = "None"
+			decoded.Turbulence = "None"
 		case 1:
-			fields["turbulence"] = "Light"
+			decoded.Turbulence = "Light"
 		case 2:
-			fields["turbulence"] = "Moderate"
+			decoded.Turbulence = "Moderate"
 		case 3:
-			fields["turbulence"] = "Severe"
+			decoded.Turbulence = "Severe"
 		}
-		fields["turbulence_valid"] = true
+		decoded.TurbulenceValid = true
 	} else {
-		fields["turbulence_valid"] = false
+		decoded.TurbulenceValid = false
 	}
 
 	// Bit 48: Status of humidity
 	if ExtractBits(data, 47, 1) == 1 {
 		// Bits 49-54: Humidity (6 bits)
 		humidity := float64(ExtractBits(data, 48, 6)) * 100.0 / 64.0 // Resolution: 100/64 percent
-		fields["humidity_percent"] = humidity
-		fields["humidity_valid"] = true
+		decoded.HumidityPercent = humidity
+		decoded.HumidityValid = true
 	} else {
-		fields["humidity_valid"] = false
+		decoded.HumidityValid = false
 	}
 
 	// Bits 55-56: Reserved
 
-	return fields, nil
+	return decoded, nil
 }

@@ -11,8 +11,8 @@ func (d *BDS20Decoder) BDSCode() (uint8, uint8) {
 	return 2, 0
 }
 
-func (d *BDS20Decoder) Decode(data []byte) (map[string]interface{}, error) {
-	fields := make(map[string]interface{})
+func (d *BDS20Decoder) Decode(data []byte) (interface{}, error) {
+	decoded := BDS20Decoded{}
 
 	// Bits 9-56: Aircraft identification (8 characters, 6 bits each)
 	chars := make([]byte, 8)
@@ -23,10 +23,10 @@ func (d *BDS20Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	}
 
 	callsign := strings.TrimRight(string(chars), " ")
-	fields["callsign"] = callsign
-	fields["aircraft_identification"] = callsign
+	decoded.Callsign = callsign
+	decoded.AircraftIdentification = callsign
 
-	return fields, nil
+	return decoded, nil
 }
 
 // decodeAISCharacter decodes a 6-bit character code according to ICAO Annex 10

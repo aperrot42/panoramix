@@ -9,18 +9,18 @@ func (d *BDS40Decoder) BDSCode() (uint8, uint8) {
 	return 4, 0
 }
 
-func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
-	fields := make(map[string]interface{})
+func (d *BDS40Decoder) Decode(data []byte) (interface{}, error) {
+	decoded := BDS40Decoded{}
 
 	// Bit 1: Status of MCP/FCU selected altitude
 	if ExtractBits(data, 0, 1) == 1 {
 		// Bits 2-13: MCP/FCU selected altitude (12 bits)
 		altCode := ExtractBits(data, 1, 12)
 		altitude := float64(altCode) * 16.0 // 16 ft resolution
-		fields["selected_altitude_ft"] = altitude
-		fields["selected_altitude_valid"] = true
+		decoded.SelectedAltitudeFt = altitude
+		decoded.SelectedAltitudeValid = true
 	} else {
-		fields["selected_altitude_valid"] = false
+		decoded.SelectedAltitudeValid = false
 	}
 
 	// Bit 14: Status of FMS selected altitude
@@ -28,10 +28,10 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 15-26: FMS selected altitude (12 bits)
 		altCode := ExtractBits(data, 14, 12)
 		altitude := float64(altCode) * 16.0 // 16 ft resolution
-		fields["fms_altitude_ft"] = altitude
-		fields["fms_altitude_valid"] = true
+		decoded.FmsAltitudeFt = altitude
+		decoded.FmsAltitudeValid = true
 	} else {
-		fields["fms_altitude_valid"] = false
+		decoded.FmsAltitudeValid = false
 	}
 
 	// Bit 27: Status of barometric pressure setting
@@ -39,25 +39,25 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 		// Bits 28-39: Barometric pressure setting (12 bits)
 		pressCode := ExtractBits(data, 27, 12)
 		pressure := float64(pressCode)*0.1 + 800.0 // 0.1 mb resolution, 800 mb offset
-		fields["baro_pressure_mb"] = pressure
-		fields["baro_pressure_valid"] = true
+		decoded.BaroPressureMb = pressure
+		decoded.BaroPressureValid = true
 	} else {
-		fields["baro_pressure_valid"] = false
+		decoded.BaroPressureValid = false
 	}
 
 	// Bits 40-47: Reserved (8 bits)
 
 	// Bit 48: Status of MCP/FCU mode
 	if ExtractBits(data, 47, 1) == 1 {
-		fields["mcp_fcu_mode_valid"] = true
+		decoded.McpFcuModeValid = true
 		// Bit 49: VNAV mode
-		fields["vnav_mode"] = ExtractBits(data, 48, 1) == 1
+		decoded.VnavMode = ExtractBits(data, 48, 1) == 1
 		// Bit 50: ALT HOLD mode
-		fields["alt_hold_mode"] = ExtractBits(data, 49, 1) == 1
+		decoded.AltHoldMode = ExtractBits(data, 49, 1) == 1
 		// Bit 51: Approach mode
-		fields["approach_mode"] = ExtractBits(data, 50, 1) == 1
+		decoded.ApproachMode = ExtractBits(data, 50, 1) == 1
 	} else {
-		fields["mcp_fcu_mode_valid"] = false
+		decoded.McpFcuModeValid = false
 	}
 
 	// Bits 52-53: Reserved
@@ -66,21 +66,21 @@ func (d *BDS40Decoder) Decode(data []byte) (map[string]interface{}, error) {
 	if ExtractBits(data, 53, 1) == 1 {
 		// Bits 55-56: Target altitude source
 		source := ExtractBits(data, 54, 2)
-		fields["target_altitude_source_raw"] = source
+		decoded.TargetAltitudeSourceRaw = uint32(source)
 		switch source {
 		case 0:
-			fields["target_altitude_source"] = "Unknown"
+			decoded.TargetAltitudeSource = "Unknown"
 		case 1:
-			fields["target_altitude_source"] = "Aircraft altitude"
+			decoded.TargetAltitudeSource = "Aircraft altitude"
 		case 2:
-			fields["target_altitude_source"] = "FCU/MCP selected altitude"
+			decoded.TargetAltitudeSource = "FCU/MCP selected altitude"
 		case 3:
-			fields["target_altitude_source"] = "FMS selected altitude"
+			decoded.TargetAltitudeSource = "FMS selected altitude"
 		}
-		fields["target_altitude_source_valid"] = true
+		decoded.TargetAltitudeSourceValid = true
 	} else {
-		fields["target_altitude_source_valid"] = false
+		decoded.TargetAltitudeSourceValid = false
 	}
 
-	return fields, nil
+	return decoded, nil
 }

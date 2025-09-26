@@ -641,7 +641,7 @@ func decodeBDSRegisterData(data []byte) (interface{}, int, error) {
 
 	rep := data[0] // Repetition factor
 	offset := 1
-	registers := make([]map[string]interface{}, 0, rep)
+	registers := make(map[string]interface{})
 
 	for i := uint8(0); i < rep && offset+7 < len(data); i++ {
 		if offset+8 > len(data) {
@@ -655,24 +655,26 @@ func decodeBDSRegisterData(data []byte) (interface{}, int, error) {
 		bds1 := (bdsAddr >> 4) & 0x0F
 		bds2 := bdsAddr & 0x0F
 
+		// Create key in format "bds_X_Y"
+		bdsKey := fmt.Sprintf("bds_%d_%d", bds1, bds2)
+
 		// Decode using the BDS decoder package
-		register, err := bds.Decode(bds1, bds2, bdsData)
+		decoded, err := bds.Decode(bds1, bds2, bdsData)
 		if err != nil {
 			// If decoding fails, fall back to raw data
-			registers = append(registers, map[string]interface{}{
-				"bds_data": hex.EncodeToString(bdsData),
-				"bds1":     bds1,
-				"bds2":     bds2,
-				"error":    err.Error(),
-			})
+			registers[bdsKey] = map[string]interface{}{
+				"bds1":         bds1,
+				"bds2":         bds2,
+				"bds_data_raw": hex.EncodeToString(bdsData),
+				"error":        err.Error(),
+			}
 		} else {
-			// Successful decoding - include decoded fields
-			registers = append(registers, map[string]interface{}{
-				"bds_data": hex.EncodeToString(bdsData),
-				"bds1":     bds1,
-				"bds2":     bds2,
-				"decoded":  register.Fields,
-			})
+			registers[bdsKey] = map[string]interface{}{
+				"bds1":         bds1,
+				"bds2":         bds2,
+				"bds_data_raw": hex.EncodeToString(bdsData),
+				"decoded":      decoded,
+			}
 		}
 
 		offset += 8

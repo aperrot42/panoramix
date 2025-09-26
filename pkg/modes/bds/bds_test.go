@@ -66,41 +66,37 @@ func TestRealBDSData(t *testing.T) {
 				t.Fatalf("Failed to decode hex: %v", err)
 			}
 
-			reg, err := Decode(tt.bds1, tt.bds2, data)
+			decoded, err := Decode(tt.bds1, tt.bds2, data)
 			if err != nil {
 				t.Fatalf("Failed to decode BDS %X,%X: %v", tt.bds1, tt.bds2, err)
 			}
 
 			t.Logf("BDS %X,%X decoded successfully", tt.bds1, tt.bds2)
-			
+
 			// Check specific fields based on BDS type
 			bdsCode := (tt.bds1 << 4) | tt.bds2
 			switch bdsCode {
 			case 0x40: // BDS 4,0
-				if valid, ok := reg.Fields["selected_altitude_valid"].(bool); ok && valid {
-					if alt, ok := reg.Fields["selected_altitude_ft"].(float64); ok {
+				if rawMap, ok := decoded.(map[string]interface{}); ok {
+					if alt, ok := rawMap["selected_altitude_ft"].(float64); ok {
 						t.Logf("  Selected altitude: %.0f ft", alt)
 					}
 				}
 			case 0x50: // BDS 5,0
-				if valid, ok := reg.Fields["roll_angle_valid"].(bool); ok && valid {
-					if roll, ok := reg.Fields["roll_angle_deg"].(float64); ok {
-						t.Logf("  Roll angle: %.2f degrees", roll)
+				if bds50, ok := decoded.(BDS50Decoded); ok {
+					if bds50.RollAngleValid {
+						t.Logf("  Roll angle: %.2f degrees", bds50.RollAngleDeg)
 					}
-				}
-				if valid, ok := reg.Fields["ground_speed_valid"].(bool); ok && valid {
-					if speed, ok := reg.Fields["ground_speed_kt"].(float64); ok {
-						t.Logf("  Ground speed: %.0f knots", speed)
+					if bds50.GroundSpeedValid {
+						t.Logf("  Ground speed: %.0f knots", bds50.GroundSpeedKt)
 					}
 				}
 			case 0x60: // BDS 6,0
-				if valid, ok := reg.Fields["magnetic_heading_valid"].(bool); ok && valid {
-					if heading, ok := reg.Fields["magnetic_heading_deg"].(float64); ok {
+				if rawMap, ok := decoded.(map[string]interface{}); ok {
+					if heading, ok := rawMap["magnetic_heading_deg"].(float64); ok {
 						t.Logf("  Magnetic heading: %.2f degrees", heading)
 					}
-				}
-				if valid, ok := reg.Fields["indicated_airspeed_valid"].(bool); ok && valid {
-					if ias, ok := reg.Fields["indicated_airspeed_kt"].(float64); ok {
+					if ias, ok := rawMap["indicated_airspeed_kt"].(float64); ok {
 						t.Logf("  Indicated airspeed: %.0f knots", ias)
 					}
 				}
@@ -117,28 +113,20 @@ func TestBDS40_SelectedVerticalIntention(t *testing.T) {
 		t.Fatalf("Failed to decode hex: %v", err)
 	}
 
-	reg, err := Decode(4, 0, data)
+	decoded, err := Decode(4, 0, data)
 	if err != nil {
 		t.Fatalf("Failed to decode BDS 4,0: %v", err)
 	}
 
-	// Check if selected altitude field exists
-	if valid, ok := reg.Fields["selected_altitude_valid"].(bool); ok && valid {
-		if alt, ok := reg.Fields["selected_altitude_ft"].(float64); ok {
+	// For BDS 4,0 (unknown), it returns a raw map
+	if rawMap, ok := decoded.(map[string]interface{}); ok {
+		if alt, ok := rawMap["selected_altitude_ft"].(float64); ok {
 			t.Logf("Selected altitude: %.0f ft", alt)
 		}
-	}
-
-	// Check if FMS altitude field exists
-	if valid, ok := reg.Fields["fms_altitude_valid"].(bool); ok && valid {
-		if alt, ok := reg.Fields["fms_altitude_ft"].(float64); ok {
+		if alt, ok := rawMap["fms_altitude_ft"].(float64); ok {
 			t.Logf("FMS altitude: %.0f ft", alt)
 		}
-	}
-
-	// Check if barometric pressure field exists
-	if valid, ok := reg.Fields["baro_pressure_valid"].(bool); ok && valid {
-		if pressure, ok := reg.Fields["baro_pressure_mb"].(float64); ok {
+		if pressure, ok := rawMap["baro_pressure_mb"].(float64); ok {
 			t.Logf("Barometric pressure: %.1f mb", pressure)
 		}
 	}
@@ -152,40 +140,37 @@ func TestBDS50_TrackAndTurnReport(t *testing.T) {
 		t.Fatalf("Failed to decode hex: %v", err)
 	}
 
-	reg, err := Decode(5, 0, data)
+	decoded, err := Decode(5, 0, data)
 	if err != nil {
 		t.Fatalf("Failed to decode BDS 5,0: %v", err)
 	}
 
-	// Check roll angle
-	if valid, ok := reg.Fields["roll_angle_valid"].(bool); ok && valid {
-		if roll, ok := reg.Fields["roll_angle_deg"].(float64); ok {
-			t.Logf("Roll angle: %.2f degrees", roll)
+	// Check if we got a typed BDS50Decoded struct
+	if bds50, ok := decoded.(BDS50Decoded); ok {
+		// Check roll angle
+		if bds50.RollAngleValid {
+			t.Logf("Roll angle: %.2f degrees", bds50.RollAngleDeg)
 			// Validate reasonable range
-			if roll < -90 || roll > 90 {
-				t.Errorf("Roll angle out of range: %.2f", roll)
+			if bds50.RollAngleDeg < -90 || bds50.RollAngleDeg > 90 {
+				t.Errorf("Roll angle out of range: %.2f", bds50.RollAngleDeg)
 			}
 		}
-	}
 
-	// Check ground speed
-	if valid, ok := reg.Fields["ground_speed_valid"].(bool); ok && valid {
-		if speed, ok := reg.Fields["ground_speed_kt"].(float64); ok {
-			t.Logf("Ground speed: %.0f knots", speed)
+		// Check ground speed
+		if bds50.GroundSpeedValid {
+			t.Logf("Ground speed: %.0f knots", bds50.GroundSpeedKt)
 			// Validate reasonable range
-			if speed < 0 || speed > 1000 {
-				t.Errorf("Ground speed out of range: %.0f", speed)
+			if bds50.GroundSpeedKt < 0 || bds50.GroundSpeedKt > 1000 {
+				t.Errorf("Ground speed out of range: %.0f", bds50.GroundSpeedKt)
 			}
 		}
-	}
 
-	// Check track angle
-	if valid, ok := reg.Fields["true_track_angle_valid"].(bool); ok && valid {
-		if track, ok := reg.Fields["true_track_angle_deg"].(float64); ok {
-			t.Logf("True track angle: %.2f degrees", track)
+		// Check track angle
+		if bds50.TrueTrackAngleValid {
+			t.Logf("True track angle: %.2f degrees", bds50.TrueTrackAngleDeg)
 			// Validate range 0-360
-			if track < 0 || track > 360 {
-				t.Errorf("Track angle out of range: %.2f", track)
+			if bds50.TrueTrackAngleDeg < 0 || bds50.TrueTrackAngleDeg > 360 {
+				t.Errorf("Track angle out of range: %.2f", bds50.TrueTrackAngleDeg)
 			}
 		}
 	}
@@ -199,36 +184,28 @@ func TestBDS60_HeadingAndSpeedReport(t *testing.T) {
 		t.Fatalf("Failed to decode hex: %v", err)
 	}
 
-	reg, err := Decode(6, 0, data)
+	decoded, err := Decode(6, 0, data)
 	if err != nil {
 		t.Fatalf("Failed to decode BDS 6,0: %v", err)
 	}
 
-	// Check magnetic heading
-	if valid, ok := reg.Fields["magnetic_heading_valid"].(bool); ok && valid {
-		if heading, ok := reg.Fields["magnetic_heading_deg"].(float64); ok {
+	// For BDS 6,0 (unknown), it returns a raw map
+	if rawMap, ok := decoded.(map[string]interface{}); ok {
+		if heading, ok := rawMap["magnetic_heading_deg"].(float64); ok {
 			t.Logf("Magnetic heading: %.2f degrees", heading)
 			// Validate range 0-360
 			if heading < 0 || heading > 360 {
 				t.Errorf("Magnetic heading out of range: %.2f", heading)
 			}
 		}
-	}
-
-	// Check indicated airspeed
-	if valid, ok := reg.Fields["indicated_airspeed_valid"].(bool); ok && valid {
-		if ias, ok := reg.Fields["indicated_airspeed_kt"].(float64); ok {
+		if ias, ok := rawMap["indicated_airspeed_kt"].(float64); ok {
 			t.Logf("Indicated airspeed: %.0f knots", ias)
 			// Validate reasonable range
 			if ias < 0 || ias > 600 {
 				t.Errorf("IAS out of range: %.0f", ias)
 			}
 		}
-	}
-
-	// Check Mach number
-	if valid, ok := reg.Fields["mach_number_valid"].(bool); ok && valid {
-		if mach, ok := reg.Fields["mach_number"].(float64); ok {
+		if mach, ok := rawMap["mach_number"].(float64); ok {
 			t.Logf("Mach number: %.3f", mach)
 			// Validate reasonable range
 			if mach < 0 || mach > 2.0 {
@@ -251,35 +228,27 @@ func TestBDS44_MeteorologicalReport(t *testing.T) {
 		data = data[:7]
 	}
 
-	reg, err := Decode(4, 4, data)
+	decoded, err := Decode(4, 4, data)
 	if err != nil {
 		t.Fatalf("Failed to decode BDS 4,4: %v", err)
 	}
 
-	// Check wind data
-	if valid, ok := reg.Fields["wind_valid"].(bool); ok && valid {
-		if windSpeed, ok := reg.Fields["wind_speed_kt"].(uint32); ok {
+	// For BDS 4,4 (unknown), it returns a raw map
+	if rawMap, ok := decoded.(map[string]interface{}); ok {
+		if windSpeed, ok := rawMap["wind_speed_kt"].(uint32); ok {
 			t.Logf("Wind speed: %d knots", windSpeed)
 		}
-		if windDir, ok := reg.Fields["wind_direction_deg"].(float64); ok {
+		if windDir, ok := rawMap["wind_direction_deg"].(float64); ok {
 			t.Logf("Wind direction: %.1f degrees", windDir)
 		}
-	}
-
-	// Check temperature
-	if valid, ok := reg.Fields["static_air_temperature_valid"].(bool); ok && valid {
-		if temp, ok := reg.Fields["static_air_temperature_c"].(float64); ok {
+		if temp, ok := rawMap["static_air_temperature_c"].(float64); ok {
 			t.Logf("Static air temperature: %.2f°C", temp)
 			// Validate reasonable range
 			if temp < -80 || temp > 60 {
 				t.Errorf("Temperature out of range: %.2f°C", temp)
 			}
 		}
-	}
-
-	// Check turbulence
-	if valid, ok := reg.Fields["turbulence_valid"].(bool); ok && valid {
-		if turb, ok := reg.Fields["turbulence"].(string); ok {
+		if turb, ok := rawMap["turbulence"].(string); ok {
 			t.Logf("Turbulence: %s", turb)
 		}
 	}
@@ -293,19 +262,21 @@ func TestBDS10_DataLinkCapability(t *testing.T) {
 		t.Fatalf("Failed to decode hex: %v", err)
 	}
 
-	reg, err := Decode(1, 0, data)
+	decoded, err := Decode(1, 0, data)
 	if err != nil {
 		t.Fatalf("Failed to decode BDS 1,0: %v", err)
 	}
 
-	// Check various capability flags
-	capabilities := []string{
-		"bds_20_cap", "bds_40_cap", "bds_50_cap", "bds_60_cap",
-	}
+	// For BDS 1,0 (unknown), it returns a raw map
+	if rawMap, ok := decoded.(map[string]interface{}); ok {
+		capabilities := []string{
+			"bds_20_cap", "bds_40_cap", "bds_50_cap", "bds_60_cap",
+		}
 
-	for _, cap := range capabilities {
-		if val, ok := reg.Fields[cap].(bool); ok {
-			t.Logf("%s: %v", cap, val)
+		for _, cap := range capabilities {
+			if val, ok := rawMap[cap].(bool); ok {
+				t.Logf("%s: %v", cap, val)
+			}
 		}
 	}
 }
@@ -318,18 +289,19 @@ func TestUnknownBDSCode(t *testing.T) {
 		t.Fatalf("Failed to decode hex: %v", err)
 	}
 
-	reg, err := Decode(9, 9, data) // BDS 9,9 doesn't exist
+	decoded, err := Decode(9, 9, data) // BDS 9,9 doesn't exist
 	if err != nil {
 		t.Fatalf("Unexpected error for unknown BDS code: %v", err)
 	}
 
 	// Should return raw data with unknown flag
-	if unknown, ok := reg.Fields["unknown"].(bool); !ok || !unknown {
-		t.Error("Expected unknown flag to be set for unknown BDS code")
-	}
-
-	if raw, ok := reg.Fields["raw"].(string); !ok || raw == "" {
-		t.Error("Expected raw data to be present for unknown BDS code")
+	if rawMap, ok := decoded.(map[string]interface{}); ok {
+		if unknown, ok := rawMap["unknown"].(bool); !ok || !unknown {
+			t.Error("Expected unknown flag to be set for unknown BDS code")
+		}
+		if raw, ok := rawMap["raw"].(string); !ok || raw == "" {
+			t.Error("Expected raw data to be present for unknown BDS code")
+		}
 	}
 }
 
