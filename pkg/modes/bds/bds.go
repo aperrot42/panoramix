@@ -14,6 +14,121 @@ type Register struct {
 	Fields map[string]interface{} // Decoded fields
 }
 
+// BDS10Register represents BDS 1,0 - Data Link Capability Report
+type BDS10Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS10Decoded `json:"decoded"`
+}
+
+type BDS10Decoded struct {
+	// Add fields as they are defined in BDS10Decoder
+}
+
+// BDS17Register represents BDS 1,7 - Common Usage GICB Capability Report
+type BDS17Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS17Decoded `json:"decoded"`
+}
+
+type BDS17Decoded struct {
+	// Add fields as they are defined in BDS17Decoder
+}
+
+// BDS20Register represents BDS 2,0 - Aircraft Identification
+type BDS20Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS20Decoded `json:"decoded"`
+}
+
+type BDS20Decoded struct {
+	Callsign               string `json:"callsign"`
+	AircraftIdentification string `json:"aircraft_identification"`
+}
+
+// BDS30Register represents BDS 3,0 - ACAS Active Resolution Advisory
+type BDS30Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS30Decoded `json:"decoded"`
+}
+
+type BDS30Decoded struct {
+	// Add fields as they are defined in BDS30Decoder
+}
+
+// BDS40Register represents BDS 4,0 - Selected Vertical Intention
+type BDS40Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS40Decoded `json:"decoded"`
+}
+
+type BDS40Decoded struct {
+	// Add fields as they are defined in BDS40Decoder
+}
+
+// BDS44Register represents BDS 4,4 - Meteorological Routine Air Report
+type BDS44Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS44Decoded `json:"decoded"`
+}
+
+type BDS44Decoded struct {
+	// Add fields as they are defined in BDS44Decoder
+}
+
+// BDS50Register represents BDS 5,0 - Track and Turn Report
+type BDS50Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS50Decoded `json:"decoded"`
+}
+
+type BDS50Decoded struct {
+	RollAngleDeg           float64 `json:"roll_angle_deg,omitempty"`
+	RollAngleValid         bool    `json:"roll_angle_valid"`
+	TrueTrackAngleDeg      float64 `json:"true_track_angle_deg,omitempty"`
+	TrueTrackAngleValid    bool    `json:"true_track_angle_valid"`
+	GroundSpeedKt          float64 `json:"ground_speed_kt,omitempty"`
+	GroundSpeedValid       bool    `json:"ground_speed_valid"`
+	TrackAngleRateDegS     float64 `json:"track_angle_rate_deg_s,omitempty"`
+	TrackAngleRateValid    bool    `json:"track_angle_rate_valid"`
+	TrueAirspeedKt         float64 `json:"true_airspeed_kt,omitempty"`
+	TrueAirspeedValid      bool    `json:"true_airspeed_valid"`
+}
+
+// BDS60Register represents BDS 6,0 - Heading and Speed Report
+type BDS60Register struct {
+	BDS1        uint8  `json:"bds1"`
+	BDS2        uint8  `json:"bds2"`
+	BDSDataRaw  string `json:"bds_data_raw"`
+	Decoded     BDS60Decoded `json:"decoded"`
+}
+
+type BDS60Decoded struct {
+	MagneticHeadingDeg            float64 `json:"magnetic_heading_deg,omitempty"`
+	MagneticHeadingValid          bool    `json:"magnetic_heading_valid"`
+	IndicatedAirspeedKt           float64 `json:"indicated_airspeed_kt,omitempty"`
+	IndicatedAirspeedValid        bool    `json:"indicated_airspeed_valid"`
+	MachNumber                    float64 `json:"mach_number,omitempty"`
+	MachNumberValid               bool    `json:"mach_number_valid"`
+	BaroAltitudeRateFpm           float64 `json:"baro_altitude_rate_fpm,omitempty"`
+	BaroAltitudeRateValid         bool    `json:"baro_altitude_rate_valid"`
+	InertialVerticalVelocityFpm   float64 `json:"inertial_vertical_velocity_fpm,omitempty"`
+	InertialVerticalVelocityValid bool    `json:"inertial_vertical_velocity_valid"`
+}
+
 // Decoder is the interface for BDS register decoders
 type Decoder interface {
 	Decode(data []byte) (map[string]interface{}, error)
