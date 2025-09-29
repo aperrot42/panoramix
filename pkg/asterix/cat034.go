@@ -41,7 +41,6 @@ func (d *CAT034Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 	return AsterixMessage, nil
 }
 
-
 var cat034Items = map[int]DataItem{
 	// CAT 034 User Application Profile - 14 FRNs
 	1:  NewDataItemTyped("I034/010", decodeDataSourceIdentifier034), // FRN 1: Data Source Identifier

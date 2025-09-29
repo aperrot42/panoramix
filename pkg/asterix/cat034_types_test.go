@@ -19,7 +19,7 @@ func TestCAT034TypedDecoding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to decode message: %v", err)
 	}
-	
+
 	// Extract the raw message from the parsed result
 	rawMsg := &RawAsterixMessage{
 		Category: msg.Category,
@@ -62,7 +62,7 @@ func TestCAT034TypedVsOriginalDecoding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to decode hex data: %v", err)
 	}
-	
+
 	decoder := &CAT034Decoder{}
 	rawMsg := &RawAsterixMessage{
 		Category: 34,
@@ -83,6 +83,6 @@ func TestCAT034TypedVsOriginalDecoding(t *testing.T) {
 		t.Errorf("Expected category 34, got %d", originalMsg.Category)
 	}
 
-	t.Logf("Both decoders produce consistent results: SAC=%d, SIC=%d, Category=%d", 
+	t.Logf("Both decoders produce consistent results: SAC=%d, SIC=%d, Category=%d",
 		originalMsg.Sac, originalMsg.Sic, originalMsg.Category)
 }

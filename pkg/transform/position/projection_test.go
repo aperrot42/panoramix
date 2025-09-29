@@ -17,11 +17,11 @@ func TestCoordinateTransformConsistency(t *testing.T) {
 
 	// Test cases from real data
 	testCases := []struct {
-		name     string
-		rangeNM  float64
+		name       string
+		rangeNM    float64
 		azimuthDeg float64
-		xNM      float64
-		yNM      float64
+		xNM        float64
+		yNM        float64
 	}{
 		{"Case1", 96.1640625, 31.3330078125, 50.0078125, 82.140625},
 		{"Case2", 124.78125, 33.55224609375, 68.96875, 103.9921875},
@@ -42,19 +42,19 @@ func TestCoordinateTransformConsistency(t *testing.T) {
 
 			// Calculate the distance between the two WGS84 positions
 			distance := GeodeticDistance(latPolar, lonPolar, latCart, lonCart)
-			
+
 			// Verify they are very close (within 10 meters - expected due to ASTERIX quantization)
 			if distance > 10.0 {
 				t.Errorf("Coordinate transformation inconsistency for %s:", tc.name)
 				t.Errorf("  Polar->WGS84:     %.8f°, %.8f°", latPolar, lonPolar)
 				t.Errorf("  Cartesian->WGS84: %.8f°, %.8f°", latCart, lonCart)
 				t.Errorf("  Distance between: %.2f meters", distance)
-				
+
 				// Debug info
 				t.Logf("Input data:")
 				t.Logf("  Range: %.4f NM (%.0f m), Azimuth: %.6f°", tc.rangeNM, rangeM, tc.azimuthDeg)
 				t.Logf("  X: %.4f NM (%.0f m), Y: %.4f NM (%.0f m)", tc.xNM, xM, tc.yNM, yM)
-				
+
 				// Verify Cartesian conversion
 				computedRange := math.Sqrt(xM*xM + yM*yM)
 				computedAzimuth := math.Atan2(xM, yM) * 180.0 / math.Pi
@@ -63,7 +63,7 @@ func TestCoordinateTransformConsistency(t *testing.T) {
 				}
 				t.Logf("Computed from Cartesian:")
 				t.Logf("  Range: %.0f m, Azimuth: %.6f°", computedRange, computedAzimuth)
-				t.Logf("  Range diff: %.2f m, Azimuth diff: %.6f°", 
+				t.Logf("  Range diff: %.2f m, Azimuth diff: %.6f°",
 					computedRange-rangeM, computedAzimuth-tc.azimuthDeg)
 			} else {
 				t.Logf("%s: Transformations match within %.2f meters ✓", tc.name, distance)
@@ -92,7 +92,7 @@ func TestPolarCartesianConversion(t *testing.T) {
 			azimuthRad := tc.azimuthDeg * math.Pi / 180.0
 			x := tc.rangeM * math.Sin(azimuthRad)
 			y := tc.rangeM * math.Cos(azimuthRad)
-			
+
 			// Convert back to polar
 			computedRange := math.Sqrt(x*x + y*y)
 			computedAzimuthRad := math.Atan2(x, y)
@@ -100,11 +100,11 @@ func TestPolarCartesianConversion(t *testing.T) {
 			if computedAzimuthDeg < 0 {
 				computedAzimuthDeg += 360
 			}
-			
+
 			// Check accuracy
 			rangeDiff := math.Abs(computedRange - tc.rangeM)
 			azimuthDiff := math.Abs(computedAzimuthDeg - tc.azimuthDeg)
-			
+
 			if rangeDiff > 0.01 || azimuthDiff > 0.01 {
 				t.Errorf("Polar<->Cartesian conversion error for %s:", tc.name)
 				t.Errorf("  Input:    Range=%.2f, Azimuth=%.2f°", tc.rangeM, tc.azimuthDeg)
@@ -121,7 +121,7 @@ func BenchmarkPolarToWGS84(b *testing.B) {
 		Longitude: 6.6323,
 		Height:    430.0,
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		PolarToWGS84(radarPos, 100000.0, 45.0)
@@ -134,7 +134,7 @@ func BenchmarkCartesianToWGS84(b *testing.B) {
 		Longitude: 6.6323,
 		Height:    430.0,
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		CartesianToWGS84(radarPos, 70710.0, 70710.0)

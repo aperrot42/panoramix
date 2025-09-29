@@ -95,7 +95,7 @@ func TestCAT034RealWorldDecoding(t *testing.T) {
 func TestCAT034MessageParsing(t *testing.T) {
 	// Test raw message parsing without full decoding
 	data, _ := hex.DecodeString(realWorldCAT034Messages[0])
-	
+
 	rawMsg, err := ParseMessage(bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("Failed to parse message: %v", err)

@@ -40,7 +40,7 @@ func TestLoadRadarConfig(t *testing.T) {
 }
 
 func TestNewPositionExtractorFromConfig(t *testing.T) {
-	extractor, err := NewPositionExtractorFromConfig("../../radar_config.yaml")
+	extractor, err := NewPositionExtractorFromConfig("../../../radar_config.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create PositionExtractor from config: %v", err)
 	}

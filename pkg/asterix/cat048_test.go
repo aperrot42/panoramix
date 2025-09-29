@@ -161,13 +161,13 @@ func TestCAT048EnhancedModeSFields(t *testing.T) {
 		{
 			name:                "Large CAT 048 with I048/250",
 			hexData:             realWorldCAT048Messages[4], // 305 bytes
-			expectedFields:      []string{"I048/250"}, // Mode S MB Data
+			expectedFields:      []string{"I048/250"},       // Mode S MB Data
 			expectedMessageSize: 305,
 		},
 		{
 			name:                "Very Large CAT 048 with I048/250",
 			hexData:             realWorldCAT048Messages[5], // 448 bytes
-			expectedFields:      []string{"I048/250"}, // Mode S MB Data
+			expectedFields:      []string{"I048/250"},       // Mode S MB Data
 			expectedMessageSize: 448,
 		},
 	}
@@ -206,7 +206,7 @@ func TestCAT048EnhancedModeSFields(t *testing.T) {
 				}
 			}
 
-			t.Logf("Successfully decoded %d-byte message with %d fields: %v", 
+			t.Logf("Successfully decoded %d-byte message with %d fields: %v",
 				len(data), len(msg.Items), getCAT048MapKeys(msg.Items))
 		})
 	}
@@ -244,7 +244,6 @@ func TestCAT048FSPECParsing(t *testing.T) {
 		})
 	}
 }
-
 
 // Helper function to get map keys for CAT 048
 func getCAT048MapKeys(m map[string]interface{}) []string {

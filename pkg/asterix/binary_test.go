@@ -83,7 +83,7 @@ func TestSignExtend14To16(t *testing.T) {
 		{"Negative value", 0x2000, -8192}, // Bit 14 set = negative
 		{"Max positive", 0x1FFF, 8191},    // Bit 14 clear = positive
 		{"Zero", 0x0000, 0},
-		{"Edge negative", 0x2001, -8191},  // Smallest negative + 1
+		{"Edge negative", 0x2001, -8191}, // Smallest negative + 1
 	}
 
 	for _, tt := range tests {
@@ -128,7 +128,7 @@ func TestReadBit(t *testing.T) {
 		bitPos   int
 		expected bool
 	}{
-		{8, true},  // MSB
+		{8, true}, // MSB
 		{7, false},
 		{6, true},
 		{5, false},

@@ -140,7 +140,7 @@ func TestInvalidMessages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var data []byte
 			var err error
-			
+
 			if tt.hexData != "" {
 				data, err = hex.DecodeString(tt.hexData)
 				if err != nil {

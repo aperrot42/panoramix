@@ -6,46 +6,29 @@ import (
 	"fmt"
 )
 
-
-// BDS10Register represents BDS 1,0 - Data Link Capability Report
-type BDS10Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS10Decoded `json:"decoded"`
-}
-
 type BDS10Decoded struct {
-	AcasReserved            uint32 `json:"acas_reserved"`
-	BDS10Cf                 bool   `json:"bds_10_cf"`
-	BDS17Cap                bool   `json:"bds_17_cap"`
-	CommBBroadcast1Cap      bool   `json:"comm_b_broadcast_1_cap"`
-	BDS20Cap                bool   `json:"bds_20_cap"`
-	BDS21Cap                bool   `json:"bds_21_cap"`
-	BDS40Cap                bool   `json:"bds_40_cap"`
-	BDS41Cap                bool   `json:"bds_41_cap"`
-	BDS42Cap                bool   `json:"bds_42_cap"`
-	BDS43Cap                bool   `json:"bds_43_cap"`
-	BDS44Cap                bool   `json:"bds_44_cap"`
-	BDS45Cap                bool   `json:"bds_45_cap"`
-	BDS48Cap                bool   `json:"bds_48_cap"`
-	BDS50Cap                bool   `json:"bds_50_cap"`
-	BDS51Cap                bool   `json:"bds_51_cap"`
-	BDS52Cap                bool   `json:"bds_52_cap"`
-	BDS53Cap                bool   `json:"bds_53_cap"`
-	BDS54Cap                bool   `json:"bds_54_cap"`
-	BDS55Cap                bool   `json:"bds_55_cap"`
-	BDS56Cap                bool   `json:"bds_56_cap"`
-	BDS5FCap                bool   `json:"bds_5F_cap"`
-	BDS60Cap                bool   `json:"bds_60_cap"`
-}
-
-// BDS17Register represents BDS 1,7 - Common Usage GICB Capability Report
-type BDS17Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS17Decoded `json:"decoded"`
+	AcasReserved       uint32 `json:"acas_reserved"`
+	BDS10Cf            bool   `json:"bds_10_cf"`
+	BDS17Cap           bool   `json:"bds_17_cap"`
+	CommBBroadcast1Cap bool   `json:"comm_b_broadcast_1_cap"`
+	BDS20Cap           bool   `json:"bds_20_cap"`
+	BDS21Cap           bool   `json:"bds_21_cap"`
+	BDS40Cap           bool   `json:"bds_40_cap"`
+	BDS41Cap           bool   `json:"bds_41_cap"`
+	BDS42Cap           bool   `json:"bds_42_cap"`
+	BDS43Cap           bool   `json:"bds_43_cap"`
+	BDS44Cap           bool   `json:"bds_44_cap"`
+	BDS45Cap           bool   `json:"bds_45_cap"`
+	BDS48Cap           bool   `json:"bds_48_cap"`
+	BDS50Cap           bool   `json:"bds_50_cap"`
+	BDS51Cap           bool   `json:"bds_51_cap"`
+	BDS52Cap           bool   `json:"bds_52_cap"`
+	BDS53Cap           bool   `json:"bds_53_cap"`
+	BDS54Cap           bool   `json:"bds_54_cap"`
+	BDS55Cap           bool   `json:"bds_55_cap"`
+	BDS56Cap           bool   `json:"bds_56_cap"`
+	BDS5FCap           bool   `json:"bds_5F_cap"`
+	BDS60Cap           bool   `json:"bds_60_cap"`
 }
 
 type BDS17Decoded struct {
@@ -75,123 +58,75 @@ type BDS17Decoded struct {
 	BDS60Cap bool `json:"bds_60_cap"`
 }
 
-// BDS20Register represents BDS 2,0 - Aircraft Identification
-type BDS20Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS20Decoded `json:"decoded"`
-}
-
 type BDS20Decoded struct {
 	Callsign               string `json:"callsign"`
 	AircraftIdentification string `json:"aircraft_identification"`
 }
 
-// BDS30Register represents BDS 3,0 - ACAS Active Resolution Advisory
-type BDS30Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS30Decoded `json:"decoded"`
-}
-
 type BDS30Decoded struct {
-	ThreatTypeIndicator        bool   `json:"threat_type_indicator"`
-	ActiveResolutionAdvisory   uint32 `json:"active_resolution_advisory"`
-	AraCorrectiveRa            bool   `json:"ara_corrective_ra"`
-	AraDownwardSense           bool   `json:"ara_downward_sense"`
-	AraIncreasedRate           bool   `json:"ara_increased_rate"`
-	AraSenseReversal           bool   `json:"ara_sense_reversal"`
-	AraAltitudeCrossing        bool   `json:"ara_altitude_crossing"`
-	AraPositiveRa              bool   `json:"ara_positive_ra"`
-	AraVerticalSpeedLimit      bool   `json:"ara_vertical_speed_limit"`
+	ThreatTypeIndicator          bool   `json:"threat_type_indicator"`
+	ActiveResolutionAdvisory     uint32 `json:"active_resolution_advisory"`
+	AraCorrectiveRa              bool   `json:"ara_corrective_ra"`
+	AraDownwardSense             bool   `json:"ara_downward_sense"`
+	AraIncreasedRate             bool   `json:"ara_increased_rate"`
+	AraSenseReversal             bool   `json:"ara_sense_reversal"`
+	AraAltitudeCrossing          bool   `json:"ara_altitude_crossing"`
+	AraPositiveRa                bool   `json:"ara_positive_ra"`
+	AraVerticalSpeedLimit        bool   `json:"ara_vertical_speed_limit"`
 	ResolutionAdvisoryComplement uint32 `json:"resolution_advisory_complement"`
-	RaTerminated               bool   `json:"ra_terminated"`
-	MultipleThreatEncounter    bool   `json:"multiple_threat_encounter"`
-	ThreatTypeRaw              uint32 `json:"threat_type_raw"`
-	ThreatType                 string `json:"threat_type"`
-	ThreatIdentityData         uint32 `json:"threat_identity_data"`
-	ThreatIdentityDataMid      uint32 `json:"threat_identity_data_mid"`
-	ThreatIdentityDataLow      uint32 `json:"threat_identity_data_low"`
-	ThreatModeSAddress         uint32 `json:"threat_mode_s_address,omitempty"`
-}
-
-// BDS40Register represents BDS 4,0 - Selected Vertical Intention
-type BDS40Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS40Decoded `json:"decoded"`
+	RaTerminated                 bool   `json:"ra_terminated"`
+	MultipleThreatEncounter      bool   `json:"multiple_threat_encounter"`
+	ThreatTypeRaw                uint32 `json:"threat_type_raw"`
+	ThreatType                   string `json:"threat_type"`
+	ThreatIdentityData           uint32 `json:"threat_identity_data"`
+	ThreatIdentityDataMid        uint32 `json:"threat_identity_data_mid"`
+	ThreatIdentityDataLow        uint32 `json:"threat_identity_data_low"`
+	ThreatModeSAddress           uint32 `json:"threat_mode_s_address,omitempty"`
 }
 
 type BDS40Decoded struct {
-	SelectedAltitudeFt          float64 `json:"selected_altitude_ft,omitempty"`
-	SelectedAltitudeValid       bool    `json:"selected_altitude_valid"`
-	FmsAltitudeFt               float64 `json:"fms_altitude_ft,omitempty"`
-	FmsAltitudeValid            bool    `json:"fms_altitude_valid"`
-	BaroPressureMb              float64 `json:"baro_pressure_mb,omitempty"`
-	BaroPressureValid           bool    `json:"baro_pressure_valid"`
-	McpFcuModeValid             bool    `json:"mcp_fcu_mode_valid"`
-	VnavMode                    bool    `json:"vnav_mode,omitempty"`
-	AltHoldMode                 bool    `json:"alt_hold_mode,omitempty"`
-	ApproachMode                bool    `json:"approach_mode,omitempty"`
-	TargetAltitudeSourceRaw     uint32  `json:"target_altitude_source_raw,omitempty"`
-	TargetAltitudeSource        string  `json:"target_altitude_source,omitempty"`
-	TargetAltitudeSourceValid   bool    `json:"target_altitude_source_valid"`
-}
-
-// BDS44Register represents BDS 4,4 - Meteorological Routine Air Report
-type BDS44Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS44Decoded `json:"decoded"`
+	SelectedAltitudeFt        float64 `json:"selected_altitude_ft,omitempty"`
+	SelectedAltitudeValid     bool    `json:"selected_altitude_valid"`
+	FmsAltitudeFt             float64 `json:"fms_altitude_ft,omitempty"`
+	FmsAltitudeValid          bool    `json:"fms_altitude_valid"`
+	BaroPressureMb            float64 `json:"baro_pressure_mb,omitempty"`
+	BaroPressureValid         bool    `json:"baro_pressure_valid"`
+	McpFcuModeValid           bool    `json:"mcp_fcu_mode_valid"`
+	VnavMode                  bool    `json:"vnav_mode,omitempty"`
+	AltHoldMode               bool    `json:"alt_hold_mode,omitempty"`
+	ApproachMode              bool    `json:"approach_mode,omitempty"`
+	TargetAltitudeSourceRaw   uint32  `json:"target_altitude_source_raw,omitempty"`
+	TargetAltitudeSource      string  `json:"target_altitude_source,omitempty"`
+	TargetAltitudeSourceValid bool    `json:"target_altitude_source_valid"`
 }
 
 type BDS44Decoded struct {
-	WindSource                     string  `json:"wind_source"`
-	WindSpeedKt                    uint32  `json:"wind_speed_kt,omitempty"`
-	WindDirectionDeg               float64 `json:"wind_direction_deg,omitempty"`
-	WindValid                      bool    `json:"wind_valid"`
-	StaticAirTemperatureC          float64 `json:"static_air_temperature_c,omitempty"`
-	StaticAirTemperatureValid      bool    `json:"static_air_temperature_valid"`
-	AverageStaticPressureHpa       float64 `json:"average_static_pressure_hpa,omitempty"`
-	AverageStaticPressureValid     bool    `json:"average_static_pressure_valid"`
-	TurbulenceRaw                  uint32  `json:"turbulence_raw,omitempty"`
-	Turbulence                     string  `json:"turbulence,omitempty"`
-	TurbulenceValid                bool    `json:"turbulence_valid"`
-	HumidityPercent                float64 `json:"humidity_percent,omitempty"`
-	HumidityValid                  bool    `json:"humidity_valid"`
-}
-
-// BDS50Register represents BDS 5,0 - Track and Turn Report
-type BDS50Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS50Decoded `json:"decoded"`
+	WindSource                 string  `json:"wind_source"`
+	WindSpeedKt                uint32  `json:"wind_speed_kt,omitempty"`
+	WindDirectionDeg           float64 `json:"wind_direction_deg,omitempty"`
+	WindValid                  bool    `json:"wind_valid"`
+	StaticAirTemperatureC      float64 `json:"static_air_temperature_c,omitempty"`
+	StaticAirTemperatureValid  bool    `json:"static_air_temperature_valid"`
+	AverageStaticPressureHpa   float64 `json:"average_static_pressure_hpa,omitempty"`
+	AverageStaticPressureValid bool    `json:"average_static_pressure_valid"`
+	TurbulenceRaw              uint32  `json:"turbulence_raw,omitempty"`
+	Turbulence                 string  `json:"turbulence,omitempty"`
+	TurbulenceValid            bool    `json:"turbulence_valid"`
+	HumidityPercent            float64 `json:"humidity_percent,omitempty"`
+	HumidityValid              bool    `json:"humidity_valid"`
 }
 
 type BDS50Decoded struct {
-	RollAngleDeg           float64 `json:"roll_angle_deg,omitempty"`
-	RollAngleValid         bool    `json:"roll_angle_valid"`
-	TrueTrackAngleDeg      float64 `json:"true_track_angle_deg,omitempty"`
-	TrueTrackAngleValid    bool    `json:"true_track_angle_valid"`
-	GroundSpeedKt          float64 `json:"ground_speed_kt,omitempty"`
-	GroundSpeedValid       bool    `json:"ground_speed_valid"`
-	TrackAngleRateDegS     float64 `json:"track_angle_rate_deg_s,omitempty"`
-	TrackAngleRateValid    bool    `json:"track_angle_rate_valid"`
-	TrueAirspeedKt         float64 `json:"true_airspeed_kt,omitempty"`
-	TrueAirspeedValid      bool    `json:"true_airspeed_valid"`
-}
-
-// BDS60Register represents BDS 6,0 - Heading and Speed Report
-type BDS60Register struct {
-	BDS1        uint8  `json:"bds1"`
-	BDS2        uint8  `json:"bds2"`
-	BDSDataRaw  string `json:"bds_data_raw"`
-	Decoded     BDS60Decoded `json:"decoded"`
+	RollAngleDeg        float64 `json:"roll_angle_deg,omitempty"`
+	RollAngleValid      bool    `json:"roll_angle_valid"`
+	TrueTrackAngleDeg   float64 `json:"true_track_angle_deg,omitempty"`
+	TrueTrackAngleValid bool    `json:"true_track_angle_valid"`
+	GroundSpeedKt       float64 `json:"ground_speed_kt,omitempty"`
+	GroundSpeedValid    bool    `json:"ground_speed_valid"`
+	TrackAngleRateDegS  float64 `json:"track_angle_rate_deg_s,omitempty"`
+	TrackAngleRateValid bool    `json:"track_angle_rate_valid"`
+	TrueAirspeedKt      float64 `json:"true_airspeed_kt,omitempty"`
+	TrueAirspeedValid   bool    `json:"true_airspeed_valid"`
 }
 
 type BDS60Decoded struct {
@@ -209,7 +144,7 @@ type BDS60Decoded struct {
 
 // Decoder is the interface for BDS register decoders that return typed structs
 type Decoder interface {
-	BDSCode() (uint8, uint8) // Returns BDS1, BDS2
+	BDSCode() (uint8, uint8)                 // Returns BDS1, BDS2
 	Decode(data []byte) (interface{}, error) // Returns typed struct
 }
 

@@ -30,7 +30,6 @@ func (d *BDS20Decoder) Decode(data []byte) (interface{}, error) {
 }
 
 // decodeAISCharacter decodes a 6-bit character code according to ICAO Annex 10
-// TODO: This is duplicated from cat048.go - should be moved to a common package
 func decodeAISCharacter(code uint32) byte {
 	switch {
 	case code >= 1 && code <= 26:
