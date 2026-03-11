@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/aperrot42/panoramix/pkg/modes/bds"
 )
 
-type CAT048Decoder struct{}
+type CAT048Decoder struct {
+	BDSDecoder BDSDecoder // optional; nil means raw-only BDS output
+}
 
 func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) {
 	if msg.Category != 48 {
@@ -22,7 +22,18 @@ func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 		return nil, err
 	}
 
-	decoded, _, err := WalkFSPEC(fspec, restPayload, cat048Items)
+	items := cat048Items
+	if d.BDSDecoder != nil {
+		items = make(map[int]DataItem, len(cat048Items))
+		for k, v := range cat048Items {
+			items[k] = v
+		}
+		items[10] = NewDataItem("I048/250", func(data []byte) (interface{}, int, error) {
+			return decodeBDSRegisterDataWith(d.BDSDecoder, data)
+		})
+	}
+
+	decoded, _, err := WalkFSPEC(fspec, restPayload, items)
 	if err != nil {
 		return nil, err
 	}
@@ -633,56 +644,52 @@ func decodeCommunicationsCapability(data []byte) (interface{}, int, error) {
 	}, 2, nil
 }
 
-// I048/250 - BDS Register Data
+// decodeBDSRegisterData decodes I048/250 Mode S MB Data (raw-only, no BDS interpretation).
 func decodeBDSRegisterData(data []byte) (interface{}, int, error) {
+	return decodeBDSRegisterDataWith(nil, data)
+}
+
+// decodeBDSRegisterDataWith decodes I048/250 Mode S MB Data.
+// If bdsDecoder is non-nil, each register is decoded into a typed struct.
+func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (interface{}, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/250")
 	}
 
-	rep := data[0] // Repetition factor
+	rep := data[0]
 	offset := 1
-	registers := make(map[string]interface{})
+	registers := make(map[string]BDSRegister)
 
-	for i := uint8(0); i < rep && offset+7 < len(data); i++ {
+	for i := uint8(0); i < rep; i++ {
 		if offset+8 > len(data) {
 			break
 		}
 
-		// Extract 7 bytes of BDS data + 1 byte BDS register address
 		bdsData := data[offset : offset+7]
 		bdsAddr := data[offset+7]
+		bdsKey := fmt.Sprintf("0x%02x", bdsAddr)
 
-		bds1 := (bdsAddr >> 4) & 0x0F
-		bds2 := bdsAddr & 0x0F
+		reg := BDSRegister{
+			BDSCode:    bdsAddr,
+			BDSDataRaw: hex.EncodeToString(bdsData),
+		}
 
-		// Create key in format "bds_X_Y"
-		bdsKey := fmt.Sprintf("bds_%d_%d", bds1, bds2)
-
-		// Decode using the BDS decoder package
-		decoded, err := bds.Decode(bds1, bds2, bdsData)
-		if err != nil {
-			// If decoding fails, fall back to raw data
-			registers[bdsKey] = map[string]interface{}{
-				"bds1":         bds1,
-				"bds2":         bds2,
-				"bds_data_raw": hex.EncodeToString(bdsData),
-				"error":        err.Error(),
-			}
-		} else {
-			registers[bdsKey] = map[string]interface{}{
-				"bds1":         bds1,
-				"bds2":         bds2,
-				"bds_data_raw": hex.EncodeToString(bdsData),
-				"decoded":      decoded,
+		if bdsDecoder != nil {
+			decoded, err := bdsDecoder.DecodeBDS(bdsAddr, bdsData)
+			if err != nil {
+				reg.Error = err.Error()
+			} else {
+				reg.Decoded = decoded
 			}
 		}
 
+		registers[bdsKey] = reg
 		offset += 8
 	}
 
-	return map[string]interface{}{
-		"repetition": rep,
-		"registers":  registers,
+	return BDSRegisterData{
+		Repetition: rep,
+		Registers:  registers,
 	}, offset, nil
 }
 

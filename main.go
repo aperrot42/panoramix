@@ -13,6 +13,7 @@ import (
 
 	"github.com/aperrot42/panoramix/pkg/asterix"
 	"github.com/aperrot42/panoramix/pkg/internal_format"
+	"github.com/aperrot42/panoramix/pkg/modes/bds"
 	"github.com/aperrot42/panoramix/pkg/transform/fspec"
 	"github.com/aperrot42/panoramix/pkg/transform/position"
 )
@@ -62,6 +63,13 @@ func outputText(data interface{}) {
 	default:
 		fmt.Printf("Unknown data type: %T\n", data)
 	}
+}
+
+// Compile-time check: bds.Adapter satisfies asterix.BDSDecoder
+var _ asterix.BDSDecoder = (*bds.Adapter)(nil)
+
+func init() {
+	asterix.RegisterDecoder(48, &asterix.CAT048Decoder{BDSDecoder: &bds.Adapter{}})
 }
 
 func main() {

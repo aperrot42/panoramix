@@ -8,6 +8,13 @@ type Decoder interface {
 	Decode(msg *RawAsterixMessage) (*AsterixMessage, error)
 }
 
+// BDSDecoder is an optional decoder for Mode S BDS register data.
+// When provided to a CAT048Decoder, raw 7-byte BDS payloads are decoded
+// into typed structures. Without it, only raw hex data is stored.
+type BDSDecoder interface {
+	DecodeBDS(bdsRegisterAddress byte, data []byte) (any, error)
+}
+
 // DataItem represents a single ASTERIX data item with its name and decoder
 type DataItem struct {
 	Name    string

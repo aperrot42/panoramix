@@ -55,6 +55,11 @@ func ParseMessage(r io.Reader) (*RawAsterixMessage, error) {
 	}, nil
 }
 
+// RegisterDecoder registers or replaces a category decoder.
+func RegisterDecoder(category byte, decoder Decoder) {
+	decoders[category] = decoder
+}
+
 // Dispatch dispatches the message to the appropriate decoder
 func Dispatch(msg *RawAsterixMessage) (*AsterixMessage, error) {
 	decoder, ok := decoders[msg.Category]
