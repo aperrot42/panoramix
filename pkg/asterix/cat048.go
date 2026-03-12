@@ -671,6 +671,7 @@ func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (interface{},
 
 		reg := BDSRegister{
 			BDSCode:    bdsAddr,
+			RawData:    bdsData,
 			BDSDataRaw: hex.EncodeToString(bdsData),
 		}
 

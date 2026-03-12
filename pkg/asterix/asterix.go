@@ -55,6 +55,24 @@ func ParseMessage(r io.Reader) (*RawAsterixMessage, error) {
 	}, nil
 }
 
+// DecodeFromBytes decodes an ASTERIX message directly from a byte slice,
+// sub-slicing without copying. The returned message references the input data.
+func DecodeFromBytes(data []byte) (*AsterixMessage, error) {
+	if len(data) < 3 {
+		return nil, fmt.Errorf("data too short: %d bytes", len(data))
+	}
+	length := binary.BigEndian.Uint16(data[1:3])
+	if length < 3 || int(length) > len(data) {
+		return nil, fmt.Errorf("invalid message length: %d", length)
+	}
+	msg := &RawAsterixMessage{
+		Category: data[0],
+		Length:   length,
+		Payload:  data[3:length], // sub-slice, zero-copy
+	}
+	return Dispatch(msg)
+}
+
 // RegisterDecoder registers or replaces a category decoder.
 func RegisterDecoder(category byte, decoder Decoder) {
 	decoders[category] = decoder
