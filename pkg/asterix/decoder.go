@@ -29,13 +29,3 @@ func NewDataItem(name string, decoderFunc func([]byte) (interface{}, int, error)
 	}
 }
 
-// NewDataItemTyped creates a DataItem with a typed decoder function (converts to interface{})
-func NewDataItemTyped[T any](name string, decoderFunc func([]byte) (T, int, error)) DataItem {
-	return DataItem{
-		Name: name,
-		Decoder: func(data []byte) (any, int, error) {
-			result, consumed, err := decoderFunc(data)
-			return result, consumed, err
-		},
-	}
-}

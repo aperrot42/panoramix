@@ -9,54 +9,96 @@ import (
 
 type CAT034Decoder struct{}
 
+// decodePtr calls a typed field decoder and stores the result pointer in dst.
+func decodePtr[T any](data []byte, fn func([]byte) (*T, int, error), dst **T) (int, error) {
+	v, n, err := fn(data)
+	if err != nil {
+		return 0, err
+	}
+	*dst = v
+	return n, nil
+}
+
 func (d *CAT034Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) {
 	if msg.Category != 34 {
 		return nil, fmt.Errorf("expected category 34, got %d", msg.Category)
 	}
 
-	fspec, restPayload, err := extractFSPEC(msg.Payload)
+	fspec, payload, err := extractFSPEC(msg.Payload)
 	if err != nil {
 		return nil, err
 	}
 
-	decoded, _, err := WalkFSPEC(fspec, restPayload, cat034Items)
+	cat034, err := d.decodeFields(fspec, payload)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract SAC/SIC from decoded data
-	var sac, sic uint8
-	if dsid, ok := decoded["I034/010"].(*DataSourceIdentifier034); ok && dsid != nil {
-		sac = dsid.SAC
-		sic = dsid.SIC
-	}
-
-	AsterixMessage := &AsterixMessage{
+	result := &AsterixMessage{
 		Category: msg.Category,
-		Sic:      sic,
-		Sac:      sac,
-		Items:    decoded,
+		Cat034:   cat034,
 		FSPEC:    fspec,
 	}
-	return AsterixMessage, nil
+	if cat034.DataSourceIdentifier != nil {
+		result.Sac = cat034.DataSourceIdentifier.SAC
+		result.Sic = cat034.DataSourceIdentifier.SIC
+	}
+	return result, nil
 }
 
-var cat034Items = map[int]DataItem{
-	// CAT 034 User Application Profile - 14 FRNs
-	1:  NewDataItemTyped("I034/010", decodeDataSourceIdentifier034), // FRN 1: Data Source Identifier
-	2:  NewDataItemTyped("I034/000", decodeMessageType034),          // FRN 2: Message Type
-	3:  NewDataItemTyped("I034/030", decodeTimeOfDay034),            // FRN 3: Time of Day
-	4:  NewDataItemTyped("I034/020", decodeSectorNumber034),         // FRN 4: Sector Number
-	5:  NewDataItemTyped("I034/041", decodeAntennaRotationSpeed034), // FRN 5: Antenna Rotation Speed
-	6:  NewDataItemTyped("I034/050", decodeSystemConfiguration034),  // FRN 6: System Configuration and Status
-	7:  NewDataItemTyped("I034/060", decodeSystemProcessingMode034), // FRN 7: System Processing Mode
-	8:  NewDataItemTyped("I034/070", decodeMessageCountValues034),   // FRN 8: Message Count Values
-	9:  NewDataItemTyped("I034/100", decodeGenericPolarWindow034),   // FRN 9: Generic Polar Window
-	10: NewDataItemTyped("I034/110", decodeDataFilter034),           // FRN 10: Data Filter
-	11: NewDataItemTyped("I034/120", decode3DPositionOfSource034),   // FRN 11: 3D-Position of Data Source
-	12: NewDataItemTyped("I034/090", decodeCollimationError034),     // FRN 12: Collimation Error
-	13: NewDataItemTyped("I034/RE", decodeReservedExpansion034),     // FRN 13: Reserved Expansion Field
-	14: NewDataItemTyped("I034/SP", decodeSpecialPurpose034),        // FRN 14: Special Purpose Field
+// decodeFields walks the FSPEC and populates a CAT034Message directly.
+func (d *CAT034Decoder) decodeFields(fspec []byte, payload []byte) (*CAT034Message, error) {
+	m := &CAT034Message{}
+	cursor := payload
+	frn := 1
+
+	for _, fspecByte := range fspec {
+		for bit := 7; bit >= 1; bit-- {
+			if fspecByte&(1<<uint(bit)) != 0 {
+				n, err := d.decodeField(frn, cursor, m)
+				if err != nil {
+					return nil, fmt.Errorf("FRN %d: %w", frn, err)
+				}
+				cursor = cursor[n:]
+			}
+			frn++
+		}
+	}
+	return m, nil
+}
+
+func (d *CAT034Decoder) decodeField(frn int, data []byte, m *CAT034Message) (int, error) {
+	switch frn {
+	case 1: // I034/010
+		return decodePtr(data, decodeDataSourceIdentifier034, &m.DataSourceIdentifier)
+	case 2: // I034/000
+		return decodePtr(data, decodeMessageType034, &m.MessageType)
+	case 3: // I034/030
+		return decodePtr(data, decodeTimeOfDay034, &m.TimeOfDay)
+	case 4: // I034/020
+		return decodePtr(data, decodeSectorNumber034, &m.SectorNumber)
+	case 5: // I034/041
+		return decodePtr(data, decodeAntennaRotationSpeed034, &m.AntennaRotationSpeed)
+	case 6: // I034/050
+		return decodePtr(data, decodeSystemConfiguration034, &m.SystemConfiguration)
+	case 7: // I034/060
+		return decodePtr(data, decodeSystemProcessingMode034, &m.SystemProcessingMode)
+	case 8: // I034/070
+		return decodePtr(data, decodeMessageCountValues034, &m.MessageCountValues)
+	case 9: // I034/100
+		return decodePtr(data, decodeGenericPolarWindow034, &m.GenericPolarWindow)
+	case 10: // I034/110
+		return decodePtr(data, decodeDataFilter034, &m.DataFilter)
+	case 11: // I034/120
+		return decodePtr(data, decode3DPositionOfSource034, &m.Position3D)
+	case 12: // I034/090
+		return decodePtr(data, decodeCollimationError034, &m.CollimationError)
+	case 13: // I034/RE
+		return decodePtr(data, decodeReservedExpansion034, &m.ReservedExpansion)
+	case 14: // I034/SP
+		return decodePtr(data, decodeSpecialPurpose034, &m.SpecialPurpose)
+	}
+	return 0, nil
 }
 
 // I034/010 - Data Source Identifier

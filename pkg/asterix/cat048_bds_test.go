@@ -24,7 +24,7 @@ func (m *mockBDSDecoder) DecodeBDS(bdsRegisterAddress byte, data []byte) (any, e
 
 // decodeCAT048WithDecoder is a helper to decode a multi-record hex message
 // using a CAT048Decoder with the given BDSDecoder, returning the first message
-// that contains I048/250.
+// that contains BDSRegister data.
 func decodeCAT048WithDecoder(t *testing.T, hexData string, bdsDecoder BDSDecoder) *AsterixMessage {
 	t.Helper()
 
@@ -43,20 +43,23 @@ func decodeCAT048WithDecoder(t *testing.T, hexData string, bdsDecoder BDSDecoder
 		if err != nil {
 			t.Fatalf("Failed to decode ASTERIX message: %v", err)
 		}
-		if _, ok := msg.Items["I048/250"]; ok {
+		if msg.Cat048 != nil && msg.Cat048.BDSRegister != nil {
 			return msg
 		}
 	}
-	t.Fatal("No message with I048/250 found")
+	t.Fatal("No message with BDSRegister found")
 	return nil
 }
 
 func TestDecodeBDSRegisterData_NoBDSDecoder(t *testing.T) {
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], nil)
 
-	raw, ok := msg.Items["I048/250"].(BDSRegisterData)
-	if !ok {
-		t.Fatalf("I048/250 is %T, want BDSRegisterData", msg.Items["I048/250"])
+	if msg.Cat048 == nil {
+		t.Fatal("Cat048 is nil")
+	}
+	raw := msg.Cat048.BDSRegister
+	if raw == nil {
+		t.Fatal("BDSRegister is nil")
 	}
 
 	if raw.Repetition == 0 {
@@ -96,9 +99,12 @@ func TestDecodeBDSRegisterData_WithBDSDecoder(t *testing.T) {
 	mock := &mockBDSDecoder{}
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], mock)
 
-	data, ok := msg.Items["I048/250"].(BDSRegisterData)
-	if !ok {
-		t.Fatalf("I048/250 is %T, want BDSRegisterData", msg.Items["I048/250"])
+	if msg.Cat048 == nil {
+		t.Fatal("Cat048 is nil")
+	}
+	data := msg.Cat048.BDSRegister
+	if data == nil {
+		t.Fatal("BDSRegister is nil")
 	}
 
 	if len(mock.calls) == 0 {
@@ -137,7 +143,11 @@ func TestDecodeBDSRegisterData_WithBDSDecoder(t *testing.T) {
 func TestDecodeBDSRegisterData_BDSKeyIsHexAddress(t *testing.T) {
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], nil)
 
-	data := msg.Items["I048/250"].(BDSRegisterData)
+	if msg.Cat048 == nil || msg.Cat048.BDSRegister == nil {
+		t.Fatal("Cat048 or BDSRegister is nil")
+	}
+
+	data := msg.Cat048.BDSRegister
 	for key, reg := range data.Registers {
 		expectedKey := fmt.Sprintf("0x%02x", reg.BDSCode)
 		if key != expectedKey {

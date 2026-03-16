@@ -194,6 +194,37 @@ type ACASResolutionAdvisory struct {
 	ACASRA string `json:"acas_ra"` // hex-encoded 7-byte data
 }
 
+// Cat048Message holds all decoded CAT 048 fields as typed values.
+// Absent fields are nil pointers (omitted from JSON).
+type Cat048Message struct {
+	DataSource             *DataSourceIdentifier        `json:"I048/010,omitempty"` // FRN 1
+	TimeOfDay              *TimeOfDay                   `json:"I048/140,omitempty"` // FRN 2
+	TargetReport           *TargetReportDescriptor      `json:"I048/020,omitempty"` // FRN 3
+	MeasuredPosition       *MeasuredPositionPolar       `json:"I048/040,omitempty"` // FRN 4
+	Mode3A                 *Mode3ACode                  `json:"I048/070,omitempty"` // FRN 5
+	FlightLevel            *FlightLevel                 `json:"I048/090,omitempty"` // FRN 6
+	RadarPlot              *RadarPlotCharacteristics    `json:"I048/130,omitempty"` // FRN 7
+	AircraftAddress        *string                      `json:"I048/220,omitempty"` // FRN 8
+	AircraftIdentification *string                      `json:"I048/240,omitempty"` // FRN 9
+	BDSRegister            *BDSRegisterData             `json:"I048/250,omitempty"` // FRN 10
+	TrackNumber            *TrackNumber                 `json:"I048/161,omitempty"` // FRN 11
+	CalculatedPosition     *CalculatedPositionCartesian `json:"I048/042,omitempty"` // FRN 12
+	TrackVelocity          *CalculatedTrackVelocity     `json:"I048/200,omitempty"` // FRN 13
+	TrackStatus            *TrackStatus                 `json:"I048/170,omitempty"` // FRN 14
+	TrackQuality           *TrackQuality                `json:"I048/210,omitempty"` // FRN 15
+	WarningError           *WarningErrorConditions      `json:"I048/030,omitempty"` // FRN 16
+	Mode3AConfidence       *Mode3ACodeConfidence        `json:"I048/080,omitempty"` // FRN 17
+	ModeCConfidence        *ModeCCodeConfidence         `json:"I048/100,omitempty"` // FRN 18
+	Height3D               *HeightMeasured3D            `json:"I048/110,omitempty"` // FRN 19
+	RadialDoppler          *RadialDopplerSpeed          `json:"I048/120,omitempty"` // FRN 20
+	CommCapability         *CommunicationsCapability    `json:"I048/230,omitempty"` // FRN 21
+	ACASAdvisory           *ACASResolutionAdvisory      `json:"I048/260,omitempty"` // FRN 22
+	Mode1                  *Mode1Code                   `json:"I048/055,omitempty"` // FRN 23
+	Mode2                  *Mode2Code                   `json:"I048/050,omitempty"` // FRN 24
+	Mode1Confidence        *Mode1CodeConfidence         `json:"I048/065,omitempty"` // FRN 25
+	Mode2Confidence        *Mode2CodeConfidence         `json:"I048/060,omitempty"` // FRN 26
+}
+
 // BDSRegisterData represents I048/250 Mode S MB Data
 type BDSRegisterData struct {
 	Repetition uint8                  `json:"repetition"`

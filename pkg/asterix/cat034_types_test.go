@@ -7,56 +7,40 @@ import (
 )
 
 func TestCAT034TypedDecoding(t *testing.T) {
-	// Use hex data from the working test
 	hexData := "220012f62821025460022084404600840000"
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
 		t.Fatalf("Failed to decode hex data: %v", err)
 	}
 
-	// Parse the full message first to get the correct payload
 	msg, err := Decode(bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("Failed to decode message: %v", err)
 	}
 
-	// Extract the raw message from the parsed result
-	rawMsg := &RawAsterixMessage{
-		Category: msg.Category,
-		Payload:  data[3:], // Skip header (category + length)
+	if msg.Category != 34 {
+		t.Errorf("Expected category 34, got %d", msg.Category)
 	}
 
-	t.Run("CAT 034 Typed Decoding", func(t *testing.T) {
-		decoder := &CAT034Decoder{}
+	if msg.Cat034 == nil {
+		t.Fatal("Cat034 is nil")
+	}
 
-		// Test standard decoding
-		msg, err := decoder.Decode(rawMsg)
-		if err != nil {
-			t.Fatalf("Decode failed: %v", err)
-		}
+	if msg.Cat034.DataSourceIdentifier == nil {
+		t.Fatal("DataSourceIdentifier is nil")
+	}
 
-		// Verify message was decoded successfully
-		if msg == nil {
-			t.Fatal("Decoded message should not be nil")
-		}
+	if msg.Sac != 40 {
+		t.Errorf("SAC = %d, want 40", msg.Sac)
+	}
+	if msg.Sic != 33 {
+		t.Errorf("SIC = %d, want 33", msg.Sic)
+	}
 
-		// Verify basic structure
-		if msg.Category != 34 {
-			t.Errorf("Expected category 34, got %d", msg.Category)
-		}
-
-		// Verify that SAC/SIC are populated
-		if msg.Sac == 0 && msg.Sic == 0 {
-			t.Error("SAC and SIC should be populated")
-		}
-
-		t.Logf("Successfully decoded CAT 034 message with SAC=%d, SIC=%d",
-			msg.Sac, msg.Sic)
-	})
+	t.Logf("Successfully decoded CAT 034 message with SAC=%d, SIC=%d", msg.Sac, msg.Sic)
 }
 
 func TestCAT034TypedVsOriginalDecoding(t *testing.T) {
-	// Test that DecodeTyped and Decode produce consistent SAC/SIC values
 	hexData := "220012f62821025460022084404600840000"
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
@@ -66,23 +50,26 @@ func TestCAT034TypedVsOriginalDecoding(t *testing.T) {
 	decoder := &CAT034Decoder{}
 	rawMsg := &RawAsterixMessage{
 		Category: 34,
-		Payload:  data[3:], // Skip category and length
+		Payload:  data[3:],
 	}
 
-	// Original decoding
-	originalMsg, err := decoder.Decode(rawMsg)
+	msg, err := decoder.Decode(rawMsg)
 	if err != nil {
-		t.Fatalf("Original Decode failed: %v", err)
+		t.Fatalf("Decode failed: %v", err)
 	}
 
-	// Test that original decoding works
-	if originalMsg.Sac == 0 && originalMsg.Sic == 0 {
-		t.Error("SAC and SIC should be populated in original message")
+	if msg.Cat034 == nil {
+		t.Fatal("Cat034 is nil")
 	}
-	if originalMsg.Category != 34 {
-		t.Errorf("Expected category 34, got %d", originalMsg.Category)
+	if msg.Cat034.DataSourceIdentifier == nil {
+		t.Fatal("DataSourceIdentifier is nil")
+	}
+	if msg.Sac != 40 || msg.Sic != 33 {
+		t.Errorf("SAC=%d SIC=%d, want SAC=40 SIC=33", msg.Sac, msg.Sic)
+	}
+	if msg.Category != 34 {
+		t.Errorf("Expected category 34, got %d", msg.Category)
 	}
 
-	t.Logf("Both decoders produce consistent results: SAC=%d, SIC=%d, Category=%d",
-		originalMsg.Sac, originalMsg.Sic, originalMsg.Category)
+	t.Logf("Decoded CAT 034: SAC=%d, SIC=%d, Category=%d", msg.Sac, msg.Sic, msg.Category)
 }

@@ -52,18 +52,22 @@ func BenchmarkNewPath_IFRead(b *testing.B) {
 	}
 }
 
+const benchMaxRecords = 5000
+
 func BenchmarkOldPath_FullDecode(b *testing.B) {
 	data := loadTestData(b)
 	b.ResetTimer()
 	b.ReportAllocs()
 	for range b.N {
 		reader := internal_format.NewReaderWithBaseDate(bytes.NewReader(data), time.Now())
-		for {
+		n := 0
+		for n < benchMaxRecords {
 			rec, err := reader.ReadRecord()
 			if err != nil || rec == nil {
 				break
 			}
 			asterix.Decode(bytes.NewReader(rec.Payload))
+			n++
 		}
 	}
 }
@@ -77,7 +81,12 @@ func BenchmarkNewPath_FullPipeline(b *testing.B) {
 		src := NewIFSource(reader)
 		decoded := NewMapFilter(src, AsterixDecodeFilter)
 		enriched := NewMapFilter(decoded, NewBDSEnrichFilter(&bds.Adapter{}))
+		n := 0
 		Drain(enriched, func(_ AsterixResult) error {
+			n++
+			if n >= benchMaxRecords {
+				return io.EOF
+			}
 			return nil
 		})
 	}
@@ -93,7 +102,12 @@ func BenchmarkNewPath_FullPipelineJSON(b *testing.B) {
 		decoded := NewMapFilter(src, AsterixDecodeFilter)
 		enriched := NewMapFilter(decoded, NewBDSEnrichFilter(&bds.Adapter{}))
 		enc := json.NewEncoder(io.Discard)
+		n := 0
 		Drain(enriched, func(ar AsterixResult) error {
+			n++
+			if n >= benchMaxRecords {
+				return io.EOF
+			}
 			return enc.Encode(ar)
 		})
 	}

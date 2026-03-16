@@ -3,6 +3,7 @@ package asterix
 import (
 	"bytes"
 	"encoding/hex"
+	"reflect"
 	"testing"
 )
 
@@ -15,38 +16,54 @@ var realWorldCAT034Messages = []string{
 	"220012f62821025460524084404600840000", // CAT 034 with different sequence
 }
 
+// countCAT034Fields counts the number of non-nil pointer fields in a CAT034Message.
+func countCAT034Fields(c *CAT034Message) int {
+	if c == nil {
+		return 0
+	}
+	v := reflect.ValueOf(c).Elem()
+	count := 0
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.Kind() == reflect.Ptr && !f.IsNil() {
+			count++
+		}
+	}
+	return count
+}
+
 func TestCAT034RealWorldDecoding(t *testing.T) {
 	tests := []struct {
-		name     string
-		hexData  string
-		wantSIC  uint8
-		wantSAC  uint8
-		wantCat  byte
-		minItems int // Minimum number of items expected
+		name      string
+		hexData   string
+		wantSIC   uint8
+		wantSAC   uint8
+		wantCat   byte
+		minFields int
 	}{
 		{
-			name:     "CAT 034 Real Message 1",
-			hexData:  realWorldCAT034Messages[0],
-			wantSIC:  33,
-			wantSAC:  40,
-			wantCat:  34,
-			minItems: 5,
+			name:      "CAT 034 Real Message 1",
+			hexData:   realWorldCAT034Messages[0],
+			wantSIC:   33,
+			wantSAC:   40,
+			wantCat:   34,
+			minFields: 5,
 		},
 		{
-			name:     "CAT 034 Real Message 2",
-			hexData:  realWorldCAT034Messages[1],
-			wantSIC:  33,
-			wantSAC:  40,
-			wantCat:  34,
-			minItems: 5,
+			name:      "CAT 034 Real Message 2",
+			hexData:   realWorldCAT034Messages[1],
+			wantSIC:   33,
+			wantSAC:   40,
+			wantCat:   34,
+			minFields: 5,
 		},
 		{
-			name:     "CAT 034 Real Message 3",
-			hexData:  realWorldCAT034Messages[2],
-			wantSIC:  33,
-			wantSAC:  40,
-			wantCat:  34,
-			minItems: 5,
+			name:      "CAT 034 Real Message 3",
+			hexData:   realWorldCAT034Messages[2],
+			wantSIC:   33,
+			wantSAC:   40,
+			wantCat:   34,
+			minFields: 5,
 		},
 	}
 
@@ -74,26 +91,30 @@ func TestCAT034RealWorldDecoding(t *testing.T) {
 				t.Errorf("SAC = %d, want %d", msg.Sac, tt.wantSAC)
 			}
 
-			if len(msg.Items) < tt.minItems {
-				t.Errorf("Items count = %d, want at least %d", len(msg.Items), tt.minItems)
+			if msg.Cat034 == nil {
+				t.Fatal("Cat034 is nil")
+			}
+
+			fieldCount := countCAT034Fields(msg.Cat034)
+			if fieldCount < tt.minFields {
+				t.Errorf("Cat034 field count = %d, want at least %d", fieldCount, tt.minFields)
 			}
 
 			// Verify mandatory fields exist
-			if _, exists := msg.Items["I034/010"]; !exists {
-				t.Error("Missing mandatory field I034/010 (Data Source Identifier)")
+			if msg.Cat034.DataSourceIdentifier == nil {
+				t.Error("Missing mandatory field DataSourceIdentifier (I034/010)")
 			}
 
-			if _, exists := msg.Items["I034/000"]; !exists {
-				t.Error("Missing mandatory field I034/000 (Message Type)")
+			if msg.Cat034.MessageType == nil {
+				t.Error("Missing mandatory field MessageType (I034/000)")
 			}
 
-			t.Logf("Decoded %d items: %v", len(msg.Items), getCAT034MapKeys(msg.Items))
+			t.Logf("Decoded %d fields in Cat034", fieldCount)
 		})
 	}
 }
 
 func TestCAT034MessageParsing(t *testing.T) {
-	// Test raw message parsing without full decoding
 	data, _ := hex.DecodeString(realWorldCAT034Messages[0])
 
 	rawMsg, err := ParseMessage(bytes.NewReader(data))
@@ -115,7 +136,6 @@ func TestCAT034MessageParsing(t *testing.T) {
 }
 
 func TestCAT034FSPECParsing(t *testing.T) {
-	// Test FSPEC parsing with various field configurations for CAT 034
 	tests := []struct {
 		name     string
 		hexData  string
@@ -145,13 +165,4 @@ func TestCAT034FSPECParsing(t *testing.T) {
 			t.Logf("FSPEC: %x", msg.FSPEC)
 		})
 	}
-}
-
-// Helper function to get map keys for CAT 034
-func getCAT034MapKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }

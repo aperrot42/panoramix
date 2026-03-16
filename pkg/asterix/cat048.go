@@ -12,83 +12,133 @@ type CAT048Decoder struct {
 	BDSDecoder BDSDecoder // optional; nil means raw-only BDS output
 }
 
+// decode calls a field decoder, type-asserts the result, and stores a pointer in dst.
+func decode[T any](data []byte, fn func([]byte) (interface{}, int, error), dst **T) (int, error) {
+	v, n, err := fn(data)
+	if err != nil {
+		return 0, err
+	}
+	r := v.(T)
+	*dst = &r
+	return n, nil
+}
+
 func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) {
 	if msg.Category != 48 {
 		return nil, fmt.Errorf("expected category 48, got %d", msg.Category)
 	}
 
-	fspec, restPayload, err := extractFSPEC(msg.Payload)
+	fspec, payload, err := extractFSPEC(msg.Payload)
 	if err != nil {
 		return nil, err
 	}
 
-	items := cat048Items
-	if d.BDSDecoder != nil {
-		items = make(map[int]DataItem, len(cat048Items))
-		for k, v := range cat048Items {
-			items[k] = v
-		}
-		items[10] = NewDataItem("I048/250", func(data []byte) (interface{}, int, error) {
-			return decodeBDSRegisterDataWith(d.BDSDecoder, data)
-		})
-	}
-
-	decoded, _, err := WalkFSPEC(fspec, restPayload, items)
+	cat048, err := d.decodeFields(fspec, payload)
 	if err != nil {
 		return nil, err
 	}
 
-	dsi := decoded["I048/010"].(DataSourceIdentifier)
-	AsterixMessage := &AsterixMessage{
+	result := &AsterixMessage{
 		Category: msg.Category,
-		Sic:      dsi.SIC,
-		Sac:      dsi.SAC,
-		Items:    decoded,
+		Cat048:   cat048,
 		FSPEC:    fspec,
 	}
-	return AsterixMessage, nil
+	if cat048.DataSource != nil {
+		result.Sac = cat048.DataSource.SAC
+		result.Sic = cat048.DataSource.SIC
+	}
+	return result, nil
 }
 
-var cat048Items = map[int]DataItem{
-	// First FSPEC octet (FRN 1-7 + FX)
-	1: NewDataItem("I048/010", decodeDataSourceIdentifier),               // FRN 1: Data Source Identifier
-	2: NewDataItem("I048/140", decodeTimeOfDay),                          // FRN 2: Time-of-Day
-	3: NewDataItem("I048/020", decodeTargetReportDescriptor),             // FRN 3: Type and Properties of the Target Report
-	4: NewDataItem("I048/040", decodeMeasuredPositionInPolarCoordinates), // FRN 4: Measured Position in Slant Polar Coordinates
-	5: NewDataItem("I048/070", decodeMode3ACode),                         // FRN 5: Mode-3/A Code in Octal Representation
-	6: NewDataItem("I048/090", decodeFlightLevel),                        // FRN 6: Flight Level in Binary Representation
-	7: NewDataItem("I048/130", decodeRadarPlotCharacteristics),           // FRN 7: Radar Plot Characteristics
-	//FX = Field Extension Indicator
+// decodeFields walks the FSPEC and populates a Cat048Message directly.
+func (d *CAT048Decoder) decodeFields(fspec []byte, payload []byte) (*Cat048Message, error) {
+	m := &Cat048Message{}
+	cursor := payload
+	frn := 1
 
-	// Second FSPEC octet (FRN 8-14 + FX)
-	8:  NewDataItem("I048/220", decodeAircraftAddress),             // FRN 8: Aircraft Address
-	9:  NewDataItem("I048/240", decodeAircraftIdentification),      // FRN 9: Aircraft Identification
-	10: NewDataItem("I048/250", decodeBDSRegisterData),             // FRN 10: Mode S MB Data
-	11: NewDataItem("I048/161", decodeTrackNumber),                 // FRN 11: Track Number
-	12: NewDataItem("I048/042", decodeCalculatedPositionCartesian), // FRN 12: Calculated Position in Cartesian Coordinates
-	13: NewDataItem("I048/200", decodeCalculatedTrackVelocity),     // FRN 13: Calculated Track Velocity in Polar Representation
-	14: NewDataItem("I048/170", decodeTrackStatus),                 // FRN 14: Track Status
-	//FX = Field Extension Indicator
+	for _, fspecByte := range fspec {
+		for bit := 7; bit >= 1; bit-- {
+			if fspecByte&(1<<uint(bit)) != 0 {
+				n, err := d.decodeField(frn, cursor, m)
+				if err != nil {
+					return nil, fmt.Errorf("FRN %d: %w", frn, err)
+				}
+				cursor = cursor[n:]
+			}
+			frn++
+		}
+	}
+	return m, nil
+}
 
-	// Third FSPEC octet (FRN 15-21 + FX)
-	15: NewDataItem("I048/210", decodeTrackQuality),             // FRN 15: Track Quality
-	16: NewDataItem("I048/030", decodeWarningErrorConditions),   // FRN 16: Warning/Error Conditions/Target Classification
-	17: NewDataItem("I048/080", decodeMode3ACodeConfidence),     // FRN 17: Mode-3/A Code Confidence Indicator
-	18: NewDataItem("I048/100", decodeModeCodeConfidence),       // FRN 18: Mode-C Code and Confidence Indicator
-	19: NewDataItem("I048/110", decodeHeightMeasured3D),         // FRN 19: Height Measured by 3D Radar
-	20: NewDataItem("I048/120", decodeRadialDopplerSpeed),       // FRN 20: Radial Doppler Speed
-	21: NewDataItem("I048/230", decodeCommunicationsCapability), // FRN 21: Communications / ACAS Capability and Flight Status
-	//FX = Field Extension Indicator
-
-	// Fourth FSPEC octet (FRN 22-28 + FX)
-	22: NewDataItem("I048/260", decodeACASResolutionAdvisory), // FRN 22: ACAS Resolution Advisory Report
-	23: NewDataItem("I048/055", decodeMode1Code),              // FRN 23: Mode-1 Code in Octal Representation
-	24: NewDataItem("I048/050", decodeMode2Code),              // FRN 24: Mode-2 Code in Octal Representation
-	25: NewDataItem("I048/065", decodeMode1CodeConfidence),    // FRN 25: Mode-1 Code Confidence Indicator
-	26: NewDataItem("I048/060", decodeMode2CodeConfidence),    // FRN 26: Mode-2 Code Confidence Indicator
-	27: NewDataItem("I048/SP", decodeSpecialPurposeField),     // FRN 27: Special Purpose Field
-	28: NewDataItem("I048/RE", decodeReservedExpansionField),  // FRN 28: Reserved Expansion Field
-	//FX = Field Extension Indicator
+func (d *CAT048Decoder) decodeField(frn int, data []byte, m *Cat048Message) (int, error) {
+	switch frn {
+	case 1: // I048/010
+		return decode(data, decodeDataSourceIdentifier, &m.DataSource)
+	case 2: // I048/140
+		return decode(data, decodeTimeOfDay, &m.TimeOfDay)
+	case 3: // I048/020
+		return decode(data, decodeTargetReportDescriptor, &m.TargetReport)
+	case 4: // I048/040
+		return decode(data, decodeMeasuredPositionInPolarCoordinates, &m.MeasuredPosition)
+	case 5: // I048/070
+		return decode(data, decodeMode3ACode, &m.Mode3A)
+	case 6: // I048/090
+		return decode(data, decodeFlightLevel, &m.FlightLevel)
+	case 7: // I048/130
+		return decode(data, decodeRadarPlotCharacteristics, &m.RadarPlot)
+	case 8: // I048/220
+		return decode(data, decodeAircraftAddress, &m.AircraftAddress)
+	case 9: // I048/240
+		return decode(data, decodeAircraftIdentification, &m.AircraftIdentification)
+	case 10: // I048/250
+		if d.BDSDecoder != nil {
+			bds := d.BDSDecoder
+			return decode(data, func(d []byte) (interface{}, int, error) {
+				return decodeBDSRegisterDataWith(bds, d)
+			}, &m.BDSRegister)
+		}
+		return decode(data, decodeBDSRegisterData, &m.BDSRegister)
+	case 11: // I048/161
+		return decode(data, decodeTrackNumber, &m.TrackNumber)
+	case 12: // I048/042
+		return decode(data, decodeCalculatedPositionCartesian, &m.CalculatedPosition)
+	case 13: // I048/200
+		return decode(data, decodeCalculatedTrackVelocity, &m.TrackVelocity)
+	case 14: // I048/170
+		return decode(data, decodeTrackStatus, &m.TrackStatus)
+	case 15: // I048/210
+		return decode(data, decodeTrackQuality, &m.TrackQuality)
+	case 16: // I048/030
+		return decode(data, decodeWarningErrorConditions, &m.WarningError)
+	case 17: // I048/080
+		return decode(data, decodeMode3ACodeConfidence, &m.Mode3AConfidence)
+	case 18: // I048/100
+		return decode(data, decodeModeCodeConfidence, &m.ModeCConfidence)
+	case 19: // I048/110
+		return decode(data, decodeHeightMeasured3D, &m.Height3D)
+	case 20: // I048/120
+		return decode(data, decodeRadialDopplerSpeed, &m.RadialDoppler)
+	case 21: // I048/230
+		return decode(data, decodeCommunicationsCapability, &m.CommCapability)
+	case 22: // I048/260
+		return decode(data, decodeACASResolutionAdvisory, &m.ACASAdvisory)
+	case 23: // I048/055
+		return decode(data, decodeMode1Code, &m.Mode1)
+	case 24: // I048/050
+		return decode(data, decodeMode2Code, &m.Mode2)
+	case 25: // I048/065
+		return decode(data, decodeMode1CodeConfidence, &m.Mode1Confidence)
+	case 26: // I048/060
+		return decode(data, decodeMode2CodeConfidence, &m.Mode2Confidence)
+	case 27: // I048/SP
+		_, n, err := decodeSpecialPurposeField(data)
+		return n, err
+	case 28: // I048/RE
+		_, n, err := decodeReservedExpansionField(data)
+		return n, err
+	}
+	return 0, nil
 }
 
 func decodeDataSourceIdentifier(data []byte) (interface{}, int, error) {
