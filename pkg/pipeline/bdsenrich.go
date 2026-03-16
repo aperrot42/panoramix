@@ -16,19 +16,12 @@ type BDSEnricher interface {
 // using the provided BDS decoder.
 func NewBDSEnrichFilter(decoder BDSEnricher) func(AsterixResult) (AsterixResult, bool, error) {
 	return func(ar AsterixResult) (AsterixResult, bool, error) {
-		if ar.Message.Category != 48 {
-			return ar, true, nil
-		}
-		raw, ok := ar.Message.Items["I048/250"]
-		if !ok {
-			return ar, true, nil
-		}
-		bdsData, ok := raw.(asterix.BDSRegisterData)
-		if !ok {
+		cat048, ok := ar.Message.Record.(*asterix.Cat048Message)
+		if !ok || cat048.BDSRegister == nil {
 			return ar, true, nil
 		}
 
-		for key, reg := range bdsData.Registers {
+		for key, reg := range cat048.BDSRegister.Registers {
 			if reg.RawData == nil {
 				continue
 			}
@@ -42,10 +35,9 @@ func NewBDSEnrichFilter(decoder BDSEnricher) func(AsterixResult) (AsterixResult,
 					fmt.Sprintf("%d_%d", bds1, bds2): decoded,
 				}
 			}
-			bdsData.Registers[key] = reg
+			cat048.BDSRegister.Registers[key] = reg
 		}
 
-		ar.Message.Items["I048/250"] = bdsData
 		return ar, true, nil
 	}
 }

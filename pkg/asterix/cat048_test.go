@@ -106,29 +106,30 @@ func TestCAT048RealWorldDecoding(t *testing.T) {
 				t.Errorf("Category = %d, want %d", msg.Category, tt.wantCat)
 			}
 
-			if msg.Sic != tt.wantSIC {
-				t.Errorf("SIC = %d, want %d", msg.Sic, tt.wantSIC)
+			if msg.Record.GetSIC() != tt.wantSIC {
+				t.Errorf("SIC = %d, want %d", msg.Record.GetSIC(), tt.wantSIC)
 			}
 
-			if msg.Sac != tt.wantSAC {
-				t.Errorf("SAC = %d, want %d", msg.Sac, tt.wantSAC)
+			if msg.Record.GetSAC() != tt.wantSAC {
+				t.Errorf("SAC = %d, want %d", msg.Record.GetSAC(), tt.wantSAC)
 			}
 
-			if msg.Cat048 == nil {
-				t.Fatal("Cat048 is nil")
+			cat048, ok := msg.Record.(*Cat048Message)
+			if !ok {
+				t.Fatal("expected Record to be *Cat048Message")
 			}
 
-			fieldCount := countCat048Fields(msg.Cat048)
+			fieldCount := countCat048Fields(cat048)
 			if fieldCount < tt.minItems {
 				t.Errorf("Cat048 field count = %d, want at least %d", fieldCount, tt.minItems)
 			}
 
 			// Verify mandatory fields exist
-			if msg.Cat048.DataSource == nil {
+			if cat048.DataSource == nil {
 				t.Error("Missing mandatory field DataSource (I048/010)")
 			}
 
-			if msg.Cat048.TimeOfDay == nil {
+			if cat048.TimeOfDay == nil {
 				t.Error("Missing mandatory field TimeOfDay (I048/140)")
 			}
 
@@ -145,25 +146,26 @@ func TestCAT048SpecificFieldDecoding(t *testing.T) {
 		t.Fatalf("Failed to decode message: %v", err)
 	}
 
-	if msg.Cat048 == nil {
-		t.Fatal("Cat048 is nil")
+	cat048, ok := msg.Record.(*Cat048Message)
+	if !ok {
+		t.Fatal("expected Record to be *Cat048Message")
 	}
 
 	// Test Data Source Identifier (I048/010)
-	if msg.Cat048.DataSource != nil {
-		if msg.Cat048.DataSource.SAC != 40 {
-			t.Errorf("SAC = %d, want 40", msg.Cat048.DataSource.SAC)
+	if cat048.DataSource != nil {
+		if cat048.DataSource.SAC != 40 {
+			t.Errorf("SAC = %d, want 40", cat048.DataSource.SAC)
 		}
-		if msg.Cat048.DataSource.SIC != 33 {
-			t.Errorf("SIC = %d, want 33", msg.Cat048.DataSource.SIC)
+		if cat048.DataSource.SIC != 33 {
+			t.Errorf("SIC = %d, want 33", cat048.DataSource.SIC)
 		}
 	} else {
 		t.Error("DataSource is nil")
 	}
 
 	// Test Time of Day exists and is reasonable
-	if msg.Cat048.TimeOfDay != nil {
-		todSeconds := msg.Cat048.TimeOfDay.Duration.Seconds()
+	if cat048.TimeOfDay != nil {
+		todSeconds := cat048.TimeOfDay.Duration.Seconds()
 		// Time should be positive and reasonable (0-86400 seconds in a day)
 		if todSeconds < 0 || todSeconds > 86400 {
 			t.Errorf("Time of Day = %f seconds, should be between 0 and 86400", todSeconds)
@@ -212,24 +214,25 @@ func TestCAT048EnhancedModeSFields(t *testing.T) {
 				t.Fatalf("Failed to decode ASTERIX message: %v", err)
 			}
 
-			if msg.Cat048 == nil {
-				t.Fatal("Cat048 is nil")
+			cat048, ok := msg.Record.(*Cat048Message)
+			if !ok {
+				t.Fatal("expected Record to be *Cat048Message")
 			}
 
 			// Verify enhanced Mode S fields are present
-			if tt.expectBDSRegister && msg.Cat048.BDSRegister == nil {
+			if tt.expectBDSRegister && cat048.BDSRegister == nil {
 				t.Error("Missing expected BDSRegister (I048/250)")
 			}
 
 			// Test that BDSRegister contains expected structure
-			if msg.Cat048.BDSRegister != nil {
-				if len(msg.Cat048.BDSRegister.Registers) == 0 {
+			if cat048.BDSRegister != nil {
+				if len(cat048.BDSRegister.Registers) == 0 {
 					t.Error("BDSRegister Registers map is empty")
 				}
-				t.Logf("BDSRegister contains %d registers", len(msg.Cat048.BDSRegister.Registers))
+				t.Logf("BDSRegister contains %d registers", len(cat048.BDSRegister.Registers))
 			}
 
-			fieldCount := countCat048Fields(msg.Cat048)
+			fieldCount := countCat048Fields(cat048)
 			t.Logf("Successfully decoded %d-byte message with %d fields",
 				len(data), fieldCount)
 		})

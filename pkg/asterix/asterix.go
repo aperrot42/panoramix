@@ -14,13 +14,9 @@ type RawAsterixMessage struct {
 }
 
 type AsterixMessage struct {
-	Category byte
-	Sic      uint8
-	Sac      uint8
-	Items    map[string]interface{} // deprecated: nil for CAT 034/048
-	Cat034   *CAT034Message         // non-nil for CAT 034
-	Cat048   *Cat048Message         // non-nil for CAT 048
-	FSPEC    []byte
+	Category byte   `json:"category"`
+	FSPEC    []byte `json:"fspec,omitempty"`
+	Record   Record `json:"record"`
 }
 
 var decoders = map[byte]Decoder{

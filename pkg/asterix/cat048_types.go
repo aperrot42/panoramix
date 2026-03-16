@@ -225,6 +225,27 @@ type Cat048Message struct {
 	Mode2Confidence        *Mode2CodeConfidence         `json:"I048/060,omitempty"` // FRN 26
 }
 
+func (m *Cat048Message) GetTimeOfDay() time.Duration {
+	if m.TimeOfDay != nil {
+		return m.TimeOfDay.Duration
+	}
+	return 0
+}
+
+func (m *Cat048Message) GetSAC() uint8 {
+	if m.DataSource != nil {
+		return m.DataSource.SAC
+	}
+	return 0
+}
+
+func (m *Cat048Message) GetSIC() uint8 {
+	if m.DataSource != nil {
+		return m.DataSource.SIC
+	}
+	return 0
+}
+
 // BDSRegisterData represents I048/250 Mode S MB Data
 type BDSRegisterData struct {
 	Repetition uint8                  `json:"repetition"`

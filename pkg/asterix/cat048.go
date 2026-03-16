@@ -13,7 +13,7 @@ type CAT048Decoder struct {
 }
 
 // decode calls a field decoder, type-asserts the result, and stores a pointer in dst.
-func decode[T any](data []byte, fn func([]byte) (interface{}, int, error), dst **T) (int, error) {
+func decode[T any](data []byte, fn func([]byte) (any, int, error), dst **T) (int, error) {
 	v, n, err := fn(data)
 	if err != nil {
 		return 0, err
@@ -38,16 +38,11 @@ func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 		return nil, err
 	}
 
-	result := &AsterixMessage{
+	return &AsterixMessage{
 		Category: msg.Category,
-		Cat048:   cat048,
 		FSPEC:    fspec,
-	}
-	if cat048.DataSource != nil {
-		result.Sac = cat048.DataSource.SAC
-		result.Sic = cat048.DataSource.SIC
-	}
-	return result, nil
+		Record:   cat048,
+	}, nil
 }
 
 // decodeFields walks the FSPEC and populates a Cat048Message directly.
@@ -94,7 +89,7 @@ func (d *CAT048Decoder) decodeField(frn int, data []byte, m *Cat048Message) (int
 	case 10: // I048/250
 		if d.BDSDecoder != nil {
 			bds := d.BDSDecoder
-			return decode(data, func(d []byte) (interface{}, int, error) {
+			return decode(data, func(d []byte) (any, int, error) {
 				return decodeBDSRegisterDataWith(bds, d)
 			}, &m.BDSRegister)
 		}
@@ -141,7 +136,7 @@ func (d *CAT048Decoder) decodeField(frn int, data []byte, m *Cat048Message) (int
 	return 0, nil
 }
 
-func decodeDataSourceIdentifier(data []byte) (interface{}, int, error) {
+func decodeDataSourceIdentifier(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/010")
 	}
@@ -168,7 +163,7 @@ type TargetReportDescriptor struct {
 	FOEFRI bool
 }
 
-func decodeTargetReportDescriptor(data []byte) (interface{}, int, error) {
+func decodeTargetReportDescriptor(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("I048/020: not enough data")
 	}
@@ -214,7 +209,7 @@ func decodeTargetReportDescriptor(data []byte) (interface{}, int, error) {
 	return trd, offset, nil
 }
 
-func decodeTimeOfDay(data []byte) (interface{}, int, error) {
+func decodeTimeOfDay(data []byte) (any, int, error) {
 	if len(data) < 3 {
 		return nil, 0, fmt.Errorf("too short for I048/140")
 	}
@@ -243,7 +238,7 @@ type RadarPlotCharacteristics struct {
 }
 
 // decodeRadarPlotCharacteristics parses I048/130 starting at data[0]
-func decodeRadarPlotCharacteristics(data []byte) (interface{}, int, error) {
+func decodeRadarPlotCharacteristics(data []byte) (any, int, error) {
 	var rpc RadarPlotCharacteristics
 	offset := 0
 
@@ -296,7 +291,7 @@ func decodeRadarPlotCharacteristics(data []byte) (interface{}, int, error) {
 	return rpc, offset, nil
 }
 
-func decodeFlightLevel(data []byte) (interface{}, int, error) {
+func decodeFlightLevel(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("I048/090: not enough data")
 	}
@@ -315,7 +310,7 @@ func decodeFlightLevel(data []byte) (interface{}, int, error) {
 	}, 2, nil
 }
 
-func decodeAircraftAddress(data []byte) (interface{}, int, error) {
+func decodeAircraftAddress(data []byte) (any, int, error) {
 	if len(data) < 3 {
 		return nil, 0, fmt.Errorf("too short for I048/220")
 	}
@@ -323,7 +318,7 @@ func decodeAircraftAddress(data []byte) (interface{}, int, error) {
 	return fmt.Sprintf("%06x", addr), 3, nil
 }
 
-func decodeAircraftIdentification(data []byte) (interface{}, int, error) {
+func decodeAircraftIdentification(data []byte) (any, int, error) {
 	if len(data) < 6 {
 		return "", 0, fmt.Errorf("not enough data for Aircraft Identification")
 	}
@@ -353,7 +348,7 @@ func ia5Char(b byte) rune {
 	}
 }
 
-func decodeMeasuredPositionInPolarCoordinates(data []byte) (interface{}, int, error) {
+func decodeMeasuredPositionInPolarCoordinates(data []byte) (any, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/040")
 	}
@@ -366,7 +361,7 @@ func decodeMeasuredPositionInPolarCoordinates(data []byte) (interface{}, int, er
 	}, 4, nil
 }
 
-func decodeMode3ACode(data []byte) (interface{}, int, error) {
+func decodeMode3ACode(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/070")
 	}
@@ -396,7 +391,7 @@ func twosComplement24(x int32) int32 {
 // Additional decoder functions for missing data items
 
 // I048/042 - Calculated Position in Cartesian Co-ordinates
-func decodeCalculatedPositionCartesian(data []byte) (interface{}, int, error) {
+func decodeCalculatedPositionCartesian(data []byte) (any, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/042")
 	}
@@ -410,7 +405,7 @@ func decodeCalculatedPositionCartesian(data []byte) (interface{}, int, error) {
 }
 
 // I048/050 - Mode-2 Code in Octal Representation
-func decodeMode2Code(data []byte) (interface{}, int, error) {
+func decodeMode2Code(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/050")
 	}
@@ -425,7 +420,7 @@ func decodeMode2Code(data []byte) (interface{}, int, error) {
 }
 
 // I048/055 - Mode-1 Code in Octal Representation
-func decodeMode1Code(data []byte) (interface{}, int, error) {
+func decodeMode1Code(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/055")
 	}
@@ -440,7 +435,7 @@ func decodeMode1Code(data []byte) (interface{}, int, error) {
 }
 
 // I048/060 - Mode-2 Code Confidence Indicator
-func decodeMode2CodeConfidence(data []byte) (interface{}, int, error) {
+func decodeMode2CodeConfidence(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/060")
 	}
@@ -453,7 +448,7 @@ func decodeMode2CodeConfidence(data []byte) (interface{}, int, error) {
 }
 
 // I048/065 - Mode-1 Code Confidence Indicator
-func decodeMode1CodeConfidence(data []byte) (interface{}, int, error) {
+func decodeMode1CodeConfidence(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/065")
 	}
@@ -465,7 +460,7 @@ func decodeMode1CodeConfidence(data []byte) (interface{}, int, error) {
 }
 
 // I048/080 - Mode-3/A Code Confidence Indicator
-func decodeMode3ACodeConfidence(data []byte) (interface{}, int, error) {
+func decodeMode3ACodeConfidence(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/080")
 	}
@@ -478,7 +473,7 @@ func decodeMode3ACodeConfidence(data []byte) (interface{}, int, error) {
 }
 
 // I048/100 - Mode-C Code and Code Confidence Indicator
-func decodeModeCodeConfidence(data []byte) (interface{}, int, error) {
+func decodeModeCodeConfidence(data []byte) (any, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/100")
 	}
@@ -497,7 +492,7 @@ func decodeModeCodeConfidence(data []byte) (interface{}, int, error) {
 }
 
 // I048/110 - Height Measured by a 3D Radar
-func decodeHeightMeasured3D(data []byte) (interface{}, int, error) {
+func decodeHeightMeasured3D(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/110")
 	}
@@ -517,7 +512,7 @@ func decodeHeightMeasured3D(data []byte) (interface{}, int, error) {
 }
 
 // I048/120 - Radial Doppler Speed (simplified implementation)
-func decodeRadialDopplerSpeed(data []byte) (interface{}, int, error) {
+func decodeRadialDopplerSpeed(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/120")
 	}
@@ -531,7 +526,7 @@ func decodeRadialDopplerSpeed(data []byte) (interface{}, int, error) {
 }
 
 // I048/161 - Track Number
-func decodeTrackNumber(data []byte) (interface{}, int, error) {
+func decodeTrackNumber(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/161")
 	}
@@ -542,7 +537,7 @@ func decodeTrackNumber(data []byte) (interface{}, int, error) {
 }
 
 // I048/170 - Track Status
-func decodeTrackStatus(data []byte) (interface{}, int, error) {
+func decodeTrackStatus(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/170")
 	}
@@ -572,7 +567,7 @@ func decodeTrackStatus(data []byte) (interface{}, int, error) {
 }
 
 // I048/200 - Calculated Track Velocity in Polar Co-ordinates
-func decodeCalculatedTrackVelocity(data []byte) (interface{}, int, error) {
+func decodeCalculatedTrackVelocity(data []byte) (any, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/200")
 	}
@@ -587,7 +582,7 @@ func decodeCalculatedTrackVelocity(data []byte) (interface{}, int, error) {
 }
 
 // I048/210 - Track Quality
-func decodeTrackQuality(data []byte) (interface{}, int, error) {
+func decodeTrackQuality(data []byte) (any, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/210")
 	}
@@ -601,7 +596,7 @@ func decodeTrackQuality(data []byte) (interface{}, int, error) {
 }
 
 // I048/230 - Communications/ACAS Capability and Flight Status
-func decodeCommunicationsCapability(data []byte) (interface{}, int, error) {
+func decodeCommunicationsCapability(data []byte) (any, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/230")
 	}
@@ -622,13 +617,13 @@ func decodeCommunicationsCapability(data []byte) (interface{}, int, error) {
 }
 
 // decodeBDSRegisterData decodes I048/250 Mode S MB Data (raw-only, no BDS interpretation).
-func decodeBDSRegisterData(data []byte) (interface{}, int, error) {
+func decodeBDSRegisterData(data []byte) (any, int, error) {
 	return decodeBDSRegisterDataWith(nil, data)
 }
 
 // decodeBDSRegisterDataWith decodes I048/250 Mode S MB Data.
 // If bdsDecoder is non-nil, each register is decoded into a typed struct.
-func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (interface{}, int, error) {
+func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/250")
 	}
@@ -672,7 +667,7 @@ func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (interface{},
 }
 
 // I048/260 - ACAS Resolution Advisory Report
-func decodeACASResolutionAdvisory(data []byte) (interface{}, int, error) {
+func decodeACASResolutionAdvisory(data []byte) (any, int, error) {
 	if len(data) < 7 {
 		return nil, 0, fmt.Errorf("too short for I048/260")
 	}
@@ -683,7 +678,7 @@ func decodeACASResolutionAdvisory(data []byte) (interface{}, int, error) {
 }
 
 // I048/030 - Warning/Error Conditions and Target Classification
-func decodeWarningErrorConditions(data []byte) (interface{}, int, error) {
+func decodeWarningErrorConditions(data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/030")
 	}
@@ -704,15 +699,15 @@ func decodeWarningErrorConditions(data []byte) (interface{}, int, error) {
 }
 
 // Placeholder implementations for Special Purpose and Reserved Expansion Fields
-func decodeSpecialPurposeField(data []byte) (interface{}, int, error) {
-	return map[string]interface{}{
+func decodeSpecialPurposeField(data []byte) (any, int, error) {
+	return map[string]any{
 		"note": "Special Purpose Field - implementation specific",
 		"data": hex.EncodeToString(data),
 	}, len(data), nil
 }
 
-func decodeReservedExpansionField(data []byte) (interface{}, int, error) {
-	return map[string]interface{}{
+func decodeReservedExpansionField(data []byte) (any, int, error) {
+	return map[string]any{
 		"note": "Reserved Expansion Field - implementation specific",
 		"data": hex.EncodeToString(data),
 	}, len(data), nil

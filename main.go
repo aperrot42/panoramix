@@ -35,12 +35,12 @@ type OutputMessage struct {
 	Port          int                    `json:"port"`
 	SIC           uint8                  `json:"sic"`
 	SAC           uint8                  `json:"sac"`
-	Items         map[string]interface{} `json:"items"`
+	Record        any                    `json:"record"`
 	FSPEC         string                 `json:"fspec,omitempty"`
-	Computed      map[string]interface{} `json:"computed,omitempty"`
+	Computed      map[string]any `json:"computed,omitempty"`
 }
 
-func outputJSON(data interface{}) {
+func outputJSON(data any) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("JSON marshal error: %v", err)
@@ -49,12 +49,12 @@ func outputJSON(data interface{}) {
 	fmt.Println(string(jsonData))
 }
 
-func outputText(data interface{}) {
+func outputText(data any) {
 	switch v := data.(type) {
 	case OutputMessage:
-		fmt.Printf("Msg %3d: CAT=%d Port=%d SIC=%d SAC=%d Items=%d Time=%s\n",
+		fmt.Printf("Msg %3d: CAT=%d Port=%d SIC=%d SAC=%d Time=%s\n",
 			v.MessageNumber, v.Category, v.Port, v.SIC, v.SAC,
-			len(v.Items), v.Timestamp.Format("15:04:05.000"))
+			v.Timestamp.Format("15:04:05.000"))
 	case position.Position:
 		fmt.Printf("Aircraft: SIC=%d SAC=%d Time=%s WGS84=(%.6f,%.6f) Alt=%.0fm\n",
 			v.RadarSIC, v.RadarSAC, v.Timestamp.Format("15:04:05.000"),
@@ -131,16 +131,16 @@ func main() {
 			Timestamp:     PrecisionTime{record.Timestamp},
 			Category:      asterixMsg.Category,
 			Port:          record.Port,
-			SIC:           asterixMsg.Sic,
-			SAC:           asterixMsg.Sac,
-			Items:         asterixMsg.Items,
+			SIC:           asterixMsg.Record.GetSIC(),
+			SAC:           asterixMsg.Record.GetSAC(),
+			Record:        asterixMsg.Record,
 			FSPEC:         hex.EncodeToString(asterixMsg.FSPEC),
 		}
 
 		// Apply FSPEC transform if requested
 		if *fspecFields {
 			if outputMsg.Computed == nil {
-				outputMsg.Computed = map[string]interface{}{}
+				outputMsg.Computed = map[string]any{}
 			}
 			computedFspec := fspec.ComputeAvailableFields(asterixMsg)
 			outputMsg.Computed["fspec_available_fields"] = computedFspec
@@ -153,7 +153,7 @@ func main() {
 				log.Printf("Position filter failed: %v", err)
 			}
 			if outputMsg.Computed == nil {
-				outputMsg.Computed = map[string]interface{}{}
+				outputMsg.Computed = map[string]any{}
 			}
 			outputMsg.Computed["position"] = position
 		}

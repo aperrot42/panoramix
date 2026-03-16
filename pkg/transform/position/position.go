@@ -64,67 +64,57 @@ func (ae *PositionExtractor) AddRadarPosition(pos RadarPosition) {
 
 // ExtractFromMessage extracts aircraft observations from an ASTERIX message
 func (ae *PositionExtractor) ExtractFromMessage(msg *asterix.AsterixMessage, timestamp time.Time) (*Position, error) {
-	// Get radar position
-	radarPos, ok := ae.radarRegistry.GetRadarPosition(msg.Sic, msg.Sac)
-	if !ok {
-		return nil, fmt.Errorf("radar position not found for SIC=%d SAC=%d - please configure radar position in radar_config.yaml", msg.Sic, msg.Sac)
+	rec := msg.Record
+	if rec == nil {
+		return nil, nil
 	}
 
-	// Extract data based on message category
-	switch msg.Category {
-	case 48:
-		obs, err := ae.extractFromCAT048(msg, radarPos, timestamp)
+	radarPos, ok := ae.radarRegistry.GetRadarPosition(rec.GetSIC(), rec.GetSAC())
+	if !ok {
+		return nil, fmt.Errorf("radar position not found for SIC=%d SAC=%d - please configure radar position in radar_config.yaml", rec.GetSIC(), rec.GetSAC())
+	}
+
+	switch r := rec.(type) {
+	case *asterix.Cat048Message:
+		obs, err := ae.extractFromCAT048(r, radarPos, timestamp)
 		if err != nil {
 			return nil, err
 		}
 		return &obs, nil
 	default:
-		return nil, nil // No data extracted from other categories
+		return nil, nil
 	}
 }
 
 // extractFromCAT048 extracts a single aircraft observation from CAT 048 messages
-func (ae *PositionExtractor) extractFromCAT048(msg *asterix.AsterixMessage, radarPos RadarPosition, timestamp time.Time) (Position, error) {
-
-	// Create base observation with raw ASTERIX data
+func (ae *PositionExtractor) extractFromCAT048(rec *asterix.Cat048Message, radarPos RadarPosition, timestamp time.Time) (Position, error) {
 	obs := Position{
 		Timestamp: PrecisionTime{timestamp},
-		RadarSIC:  msg.Sic,
-		RadarSAC:  msg.Sac,
+		RadarSIC:  rec.GetSIC(),
+		RadarSAC:  rec.GetSAC(),
 	}
 
-	// Compute WGS84 position from coordinates
 	hasPosition := false
 
 	// Try polar coordinates first (I048/040) - more accurate
-	if polarPos, ok := msg.Items["I048/040"].(map[string]interface{}); ok {
-		if rng, rngOk := polarPos["rho_nm"].(float64); rngOk {
-			if az, azOk := polarPos["theta_deg"].(float64); azOk {
-				rangeM := NauticalMilesToMeters(rng)
-				lat, lon := PolarToWGS84(radarPos, rangeM, az)
-				obs.WGS84Position.Latitude_deg = lat
-				obs.WGS84Position.Longitude_deg = lon
-				obs.WGS84Position.PostionSource = "POLAR"
-				hasPosition = true
-			}
-		}
+	if rec.MeasuredPosition != nil {
+		rangeM := NauticalMilesToMeters(rec.MeasuredPosition.Rho)
+		lat, lon := PolarToWGS84(radarPos, rangeM, rec.MeasuredPosition.Theta)
+		obs.WGS84Position.Latitude_deg = lat
+		obs.WGS84Position.Longitude_deg = lon
+		obs.WGS84Position.PostionSource = "POLAR"
+		hasPosition = true
 	}
 
 	// Try Cartesian coordinates (I048/042) if no polar
-	if !hasPosition {
-		if cartPos, ok := msg.Items["I048/042"].(map[string]interface{}); ok {
-			if x, xOk := cartPos["x_nm"].(float64); xOk {
-				if y, yOk := cartPos["y_nm"].(float64); yOk {
-					xM := NauticalMilesToMeters(x)
-					yM := NauticalMilesToMeters(y)
-					lat, lon := CartesianToWGS84(radarPos, xM, yM)
-					obs.WGS84Position.Latitude_deg = lat
-					obs.WGS84Position.Longitude_deg = lon
-					obs.WGS84Position.PostionSource = "CARTESIAN"
-					hasPosition = true
-				}
-			}
-		}
+	if !hasPosition && rec.CalculatedPosition != nil {
+		xM := NauticalMilesToMeters(rec.CalculatedPosition.X)
+		yM := NauticalMilesToMeters(rec.CalculatedPosition.Y)
+		lat, lon := CartesianToWGS84(radarPos, xM, yM)
+		obs.WGS84Position.Latitude_deg = lat
+		obs.WGS84Position.Longitude_deg = lon
+		obs.WGS84Position.PostionSource = "CARTESIAN"
+		hasPosition = true
 	}
 
 	if !hasPosition {
@@ -132,28 +122,17 @@ func (ae *PositionExtractor) extractFromCAT048(msg *asterix.AsterixMessage, rada
 	}
 
 	// Extract altitude with priority: 3D Radar > Flight Level
-	altitudeSource := ""
 
 	// Priority 1: I048/110 - Height Measured by 3D Radar (most accurate)
-	if heightData, ok := msg.Items["I048/110"].(map[string]interface{}); ok {
-		if height, heightOk := heightData["height_ft"].(float64); heightOk {
-			// TODO fix conversion to get feets
-			obs.WGS84Position.AltitudeFt = height
-			obs.WGS84Position.AltitudeSource = "3D_RADAR"
-		}
+	if rec.Height3D != nil {
+		obs.WGS84Position.AltitudeFt = rec.Height3D.Height
+		obs.WGS84Position.AltitudeSource = "3D_RADAR"
 	}
 
 	// Priority 2: I048/090 - Flight Level (current barometric altitude)
-	if altitudeSource == "" {
-		if flightLevel, ok := msg.Items["I048/090"].(struct {
-			FlightLevel float64
-			RawValue    int16 // 1/4th of FL
-			Validated   bool
-			Garbled     bool
-		}); ok {
-			obs.WGS84Position.AltitudeFt = float64(int32(flightLevel.RawValue) * 25) // 0.25FL * 100 => ft
-			obs.WGS84Position.AltitudeSource = "FLIGHT_LEVEL"
-		}
+	if obs.WGS84Position.AltitudeSource == "" && rec.FlightLevel != nil {
+		obs.WGS84Position.AltitudeFt = rec.FlightLevel.FL * 100 // FL to feet
+		obs.WGS84Position.AltitudeSource = "FLIGHT_LEVEL"
 	}
 
 	return obs, nil

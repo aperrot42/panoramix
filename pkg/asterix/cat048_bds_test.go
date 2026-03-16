@@ -43,7 +43,7 @@ func decodeCAT048WithDecoder(t *testing.T, hexData string, bdsDecoder BDSDecoder
 		if err != nil {
 			t.Fatalf("Failed to decode ASTERIX message: %v", err)
 		}
-		if msg.Cat048 != nil && msg.Cat048.BDSRegister != nil {
+		if cat048, ok := msg.Record.(*Cat048Message); ok && cat048.BDSRegister != nil {
 			return msg
 		}
 	}
@@ -54,10 +54,11 @@ func decodeCAT048WithDecoder(t *testing.T, hexData string, bdsDecoder BDSDecoder
 func TestDecodeBDSRegisterData_NoBDSDecoder(t *testing.T) {
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], nil)
 
-	if msg.Cat048 == nil {
-		t.Fatal("Cat048 is nil")
+	cat048, ok := msg.Record.(*Cat048Message)
+	if !ok {
+		t.Fatal("expected Record to be *Cat048Message")
 	}
-	raw := msg.Cat048.BDSRegister
+	raw := cat048.BDSRegister
 	if raw == nil {
 		t.Fatal("BDSRegister is nil")
 	}
@@ -99,10 +100,11 @@ func TestDecodeBDSRegisterData_WithBDSDecoder(t *testing.T) {
 	mock := &mockBDSDecoder{}
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], mock)
 
-	if msg.Cat048 == nil {
-		t.Fatal("Cat048 is nil")
+	cat048, ok := msg.Record.(*Cat048Message)
+	if !ok {
+		t.Fatal("expected Record to be *Cat048Message")
 	}
-	data := msg.Cat048.BDSRegister
+	data := cat048.BDSRegister
 	if data == nil {
 		t.Fatal("BDSRegister is nil")
 	}
@@ -143,11 +145,12 @@ func TestDecodeBDSRegisterData_WithBDSDecoder(t *testing.T) {
 func TestDecodeBDSRegisterData_BDSKeyIsHexAddress(t *testing.T) {
 	msg := decodeCAT048WithDecoder(t, realWorldCAT048Messages[4], nil)
 
-	if msg.Cat048 == nil || msg.Cat048.BDSRegister == nil {
+	cat048, ok := msg.Record.(*Cat048Message)
+	if !ok || cat048.BDSRegister == nil {
 		t.Fatal("Cat048 or BDSRegister is nil")
 	}
 
-	data := msg.Cat048.BDSRegister
+	data := cat048.BDSRegister
 	for key, reg := range data.Registers {
 		expectedKey := fmt.Sprintf("0x%02x", reg.BDSCode)
 		if key != expectedKey {

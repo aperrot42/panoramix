@@ -34,16 +34,11 @@ func (d *CAT034Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) 
 		return nil, err
 	}
 
-	result := &AsterixMessage{
+	return &AsterixMessage{
 		Category: msg.Category,
-		Cat034:   cat034,
 		FSPEC:    fspec,
-	}
-	if cat034.DataSourceIdentifier != nil {
-		result.Sac = cat034.DataSourceIdentifier.SAC
-		result.Sic = cat034.DataSourceIdentifier.SIC
-	}
-	return result, nil
+		Record:   cat034,
+	}, nil
 }
 
 // decodeFields walks the FSPEC and populates a CAT034Message directly.

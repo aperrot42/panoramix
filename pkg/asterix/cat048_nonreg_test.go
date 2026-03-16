@@ -40,13 +40,17 @@ func ensureTestDataLoaded() {
 				continue
 			}
 			msg, err := DecodeFromBytes(rec.Payload)
-			if err != nil || msg.Cat048 == nil {
+			if err != nil {
 				continue
 			}
-			if msg.Cat048.CalculatedPosition != nil {
+			cat048, ok := msg.Record.(*Cat048Message)
+			if !ok {
+				continue
+			}
+			if cat048.CalculatedPosition != nil {
 				cachedMessages = append(cachedMessages, msg)
 			}
-			if cachedFirstComplete == nil && msg.Cat048.CalculatedPosition != nil && msg.Cat048.BDSRegister != nil {
+			if cachedFirstComplete == nil && cat048.CalculatedPosition != nil && cat048.BDSRegister != nil {
 				cachedFirstComplete = msg
 			}
 		}
@@ -96,25 +100,30 @@ func loadCAT048Messages(tb testing.TB, limit int) []*AsterixMessage {
 func TestCAT048NonRegression_DataSourceIdentifier(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.DataSource == nil {
+	cat048, ok := msg.Record.(*Cat048Message)
+	if !ok {
+		t.Fatal("expected Cat048Message")
+	}
+	if cat048.DataSource == nil {
 		t.Fatal("DataSource (I048/010) is nil")
 	}
-	if msg.Sac != 40 {
-		t.Errorf("SAC = %d, want 40", msg.Sac)
+	if msg.Record.GetSAC() != 40 {
+		t.Errorf("SAC = %d, want 40", msg.Record.GetSAC())
 	}
-	if msg.Sic != 30 {
-		t.Errorf("SIC = %d, want 30", msg.Sic)
+	if msg.Record.GetSIC() != 30 {
+		t.Errorf("SIC = %d, want 30", msg.Record.GetSIC())
 	}
 }
 
 func TestCAT048NonRegression_TimeOfDay(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.TimeOfDay == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.TimeOfDay == nil {
 		t.Fatal("TimeOfDay (I048/140) is nil")
 	}
 	// duration = 86399859375000 ns (time.Duration is serialized as int64 nanoseconds)
-	gotNs := msg.Cat048.TimeOfDay.Duration.Nanoseconds()
+	gotNs := cat048.TimeOfDay.Duration.Nanoseconds()
 	if gotNs != 86399859375000 {
 		t.Errorf("TimeOfDay duration = %d ns, want 86399859375000", gotNs)
 	}
@@ -123,10 +132,11 @@ func TestCAT048NonRegression_TimeOfDay(t *testing.T) {
 func TestCAT048NonRegression_TargetReportDescriptor(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.TargetReport == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.TargetReport == nil {
 		t.Fatal("TargetReport (I048/020) is nil")
 	}
-	trd := msg.Cat048.TargetReport
+	trd := cat048.TargetReport
 	if trd.TYP != 5 {
 		t.Errorf("TYP = %d, want 5", trd.TYP)
 	}
@@ -147,10 +157,11 @@ func TestCAT048NonRegression_TargetReportDescriptor(t *testing.T) {
 func TestCAT048NonRegression_MeasuredPositionPolar(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.MeasuredPosition == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.MeasuredPosition == nil {
 		t.Fatal("MeasuredPosition (I048/040) is nil")
 	}
-	pos := msg.Cat048.MeasuredPosition
+	pos := cat048.MeasuredPosition
 	// rho = 32741 * (1/256) = 127.89453125 NM
 	if math.Abs(pos.Rho-127.89453125) > 0.001 {
 		t.Errorf("Rho = %v, want ~127.89453125", pos.Rho)
@@ -164,10 +175,11 @@ func TestCAT048NonRegression_MeasuredPositionPolar(t *testing.T) {
 func TestCAT048NonRegression_Mode3ACode(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.Mode3A == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.Mode3A == nil {
 		t.Fatal("Mode3A (I048/070) is nil")
 	}
-	code := msg.Cat048.Mode3A
+	code := cat048.Mode3A
 	if code.Validated != true {
 		t.Errorf("Validated = %v, want true", code.Validated)
 	}
@@ -188,10 +200,11 @@ func TestCAT048NonRegression_Mode3AOctalFormatting(t *testing.T) {
 
 	checked := 0
 	for i, msg := range msgs {
-		if msg.Cat048 == nil || msg.Cat048.Mode3A == nil {
+		cat048, ok := msg.Record.(*Cat048Message)
+		if !ok || cat048.Mode3A == nil {
 			continue
 		}
-		octal := msg.Cat048.Mode3A.OctalString()
+		octal := cat048.Mode3A.OctalString()
 		// Verify format: should be 4-digit octal string
 		if len(octal) != 4 {
 			t.Errorf("message %d: OctalString() = %q, want 4-digit string", i, octal)
@@ -205,8 +218,8 @@ func TestCAT048NonRegression_Mode3AOctalFormatting(t *testing.T) {
 			}
 			codeVal = codeVal*8 + uint16(c-'0')
 		}
-		if codeVal != msg.Cat048.Mode3A.Code {
-			t.Errorf("message %d: OctalString(%d) = %q, round-trip gives %d", i, msg.Cat048.Mode3A.Code, octal, codeVal)
+		if codeVal != cat048.Mode3A.Code {
+			t.Errorf("message %d: OctalString(%d) = %q, round-trip gives %d", i, cat048.Mode3A.Code, octal, codeVal)
 		}
 		checked++
 	}
@@ -218,10 +231,11 @@ func TestCAT048NonRegression_Mode3AOctalFormatting(t *testing.T) {
 func TestCAT048NonRegression_FlightLevel(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.FlightLevel == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.FlightLevel == nil {
 		t.Fatal("FlightLevel (I048/090) is nil")
 	}
-	fl := msg.Cat048.FlightLevel
+	fl := cat048.FlightLevel
 	// FL = 1519 * (1/4) = 379.75
 	if math.Abs(fl.FL-379.75) > 0.01 {
 		t.Errorf("FL = %v, want ~379.75", fl.FL)
@@ -237,10 +251,11 @@ func TestCAT048NonRegression_FlightLevel(t *testing.T) {
 func TestCAT048NonRegression_CalculatedPositionCartesian(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.CalculatedPosition == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.CalculatedPosition == nil {
 		t.Fatal("CalculatedPosition (I048/042) is nil")
 	}
-	pos := msg.Cat048.CalculatedPosition
+	pos := cat048.CalculatedPosition
 	// x = 16128 * (1/128) = 126 NM
 	if math.Abs(pos.X-126.0) > 0.001 {
 		t.Errorf("X = %v, want ~126.0", pos.X)
@@ -254,10 +269,11 @@ func TestCAT048NonRegression_CalculatedPositionCartesian(t *testing.T) {
 func TestCAT048NonRegression_CalculatedTrackVelocity(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.TrackVelocity == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.TrackVelocity == nil {
 		t.Fatal("TrackVelocity (I048/200) is nil")
 	}
-	vel := msg.Cat048.TrackVelocity
+	vel := cat048.TrackVelocity
 	// groundspeed: 1859*(2^-14) = 0.11346... NM/s
 	if math.Abs(vel.Groundspeed-1859.0/16384.0) > 0.0001 {
 		t.Errorf("Groundspeed = %v, want ~%v", vel.Groundspeed, 1859.0/16384.0)
@@ -271,43 +287,47 @@ func TestCAT048NonRegression_CalculatedTrackVelocity(t *testing.T) {
 func TestCAT048NonRegression_AircraftAddress(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.AircraftAddress == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.AircraftAddress == nil {
 		t.Fatal("AircraftAddress (I048/220) is nil")
 	}
-	if *msg.Cat048.AircraftAddress != "408011" {
-		t.Errorf("AircraftAddress = %q, want %q", *msg.Cat048.AircraftAddress, "408011")
+	if *cat048.AircraftAddress != "408011" {
+		t.Errorf("AircraftAddress = %q, want %q", *cat048.AircraftAddress, "408011")
 	}
 }
 
 func TestCAT048NonRegression_AircraftIdentification(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.AircraftIdentification == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.AircraftIdentification == nil {
 		t.Fatal("AircraftIdentification (I048/240) is nil")
 	}
-	if *msg.Cat048.AircraftIdentification != "EZY29PW" {
-		t.Errorf("AircraftIdentification = %q, want %q", *msg.Cat048.AircraftIdentification, "EZY29PW")
+	if *cat048.AircraftIdentification != "EZY29PW" {
+		t.Errorf("AircraftIdentification = %q, want %q", *cat048.AircraftIdentification, "EZY29PW")
 	}
 }
 
 func TestCAT048NonRegression_TrackNumber(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.TrackNumber == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.TrackNumber == nil {
 		t.Fatal("TrackNumber (I048/161) is nil")
 	}
-	if msg.Cat048.TrackNumber.Number != 1948 {
-		t.Errorf("TrackNumber = %d, want 1948", msg.Cat048.TrackNumber.Number)
+	if cat048.TrackNumber.Number != 1948 {
+		t.Errorf("TrackNumber = %d, want 1948", cat048.TrackNumber.Number)
 	}
 }
 
 func TestCAT048NonRegression_TrackStatus(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.TrackStatus == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.TrackStatus == nil {
 		t.Fatal("TrackStatus (I048/170) is nil")
 	}
-	ts := msg.Cat048.TrackStatus
+	ts := cat048.TrackStatus
 	if ts.CNF != false {
 		t.Errorf("CNF = %v, want false", ts.CNF)
 	}
@@ -328,10 +348,11 @@ func TestCAT048NonRegression_TrackStatus(t *testing.T) {
 func TestCAT048NonRegression_BDSRegisterData(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.BDSRegister == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.BDSRegister == nil {
 		t.Fatal("BDSRegister (I048/250) is nil")
 	}
-	data := msg.Cat048.BDSRegister
+	data := cat048.BDSRegister
 
 	if data.Repetition != 3 {
 		t.Errorf("repetition = %d, want 3", data.Repetition)
@@ -360,10 +381,11 @@ func TestCAT048NonRegression_BDSRegisterData(t *testing.T) {
 func TestCAT048NonRegression_CommunicationsCapability(t *testing.T) {
 	msg := loadFirstCompleteCAT048(t)
 
-	if msg.Cat048.CommCapability == nil {
+	cat048 := msg.Record.(*Cat048Message)
+	if cat048.CommCapability == nil {
 		t.Fatal("CommCapability (I048/230) is nil")
 	}
-	cc := msg.Cat048.CommCapability
+	cc := cat048.CommCapability
 	if cc.COM != 1 {
 		t.Errorf("COM = %d, want 1", cc.COM)
 	}
@@ -394,10 +416,11 @@ func TestCAT048NonRegression_JSONStability(t *testing.T) {
 	msgs := loadCAT048Messages(t, 50)
 
 	for i, msg := range msgs {
-		if msg.Cat048 == nil {
+		cat048, ok := msg.Record.(*Cat048Message)
+		if !ok {
 			continue
 		}
-		data, err := json.Marshal(msg.Cat048)
+		data, err := json.Marshal(cat048)
 		if err != nil {
 			t.Errorf("message %d: JSON marshal failed: %v", i, err)
 			continue
@@ -438,11 +461,12 @@ func TestCAT048NonRegression_FieldPresence(t *testing.T) {
 
 	fieldsSeen := make(map[string]int)
 	for _, msg := range msgs {
-		if msg.Cat048 == nil {
+		cat048, ok := msg.Record.(*Cat048Message)
+		if !ok {
 			continue
 		}
 		for _, check := range checks {
-			if check.getter(msg.Cat048) {
+			if check.getter(cat048) {
 				fieldsSeen[check.name]++
 			}
 		}

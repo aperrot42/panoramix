@@ -2,28 +2,44 @@ package asterix
 
 import "time"
 
-// CAT034Message represents a complete decoded CAT 034 ASTERIX message
+// CAT034Message holds all decoded CAT 034 fields as typed values.
+// Absent fields are nil pointers (omitted from JSON).
 type CAT034Message struct {
-	Category byte   `json:"category"`
-	SAC      uint8  `json:"sac"`
-	SIC      uint8  `json:"sic"`
-	FSPEC    []byte `json:"fspec,omitempty"`
+	DataSourceIdentifier *DataSourceIdentifier034 `json:"I034/010,omitempty"` // FRN 1
+	MessageType          *uint8                   `json:"I034/000,omitempty"` // FRN 2
+	TimeOfDay            *time.Duration           `json:"I034/030,omitempty"` // FRN 3
+	SectorNumber         *SectorNumber034         `json:"I034/020,omitempty"` // FRN 4
+	AntennaRotationSpeed *AntennaRotationSpeed034 `json:"I034/041,omitempty"` // FRN 5
+	SystemConfiguration  *SystemConfiguration034  `json:"I034/050,omitempty"` // FRN 6
+	SystemProcessingMode *SystemProcessingMode034 `json:"I034/060,omitempty"` // FRN 7
+	MessageCountValues   *MessageCountValues034   `json:"I034/070,omitempty"` // FRN 8
+	GenericPolarWindow   *GenericPolarWindow034   `json:"I034/100,omitempty"` // FRN 9
+	DataFilter           *DataFilter034           `json:"I034/110,omitempty"` // FRN 10
+	Position3D           *Position3D034           `json:"I034/120,omitempty"` // FRN 11
+	CollimationError     *CollimationError034     `json:"I034/090,omitempty"` // FRN 12
+	ReservedExpansion    *ReservedField034        `json:"I034/RE,omitempty"`  // FRN 13
+	SpecialPurpose       *SpecialPurposeField034  `json:"I034/SP,omitempty"`  // FRN 14
+}
 
-	// Data Items (following ASTERIX CAT 034 specification)
-	DataSourceIdentifier *DataSourceIdentifier034 `json:"data_source_identifier,omitempty"` // I034/010
-	MessageType          *uint8                   `json:"message_type,omitempty"`           // I034/000
-	TimeOfDay            *time.Duration           `json:"time_of_day,omitempty"`            // I034/030
-	SectorNumber         *SectorNumber034         `json:"sector_number,omitempty"`          // I034/020
-	AntennaRotationSpeed *AntennaRotationSpeed034 `json:"antenna_rotation_speed,omitempty"` // I034/041
-	SystemConfiguration  *SystemConfiguration034  `json:"system_configuration,omitempty"`   // I034/050
-	SystemProcessingMode *SystemProcessingMode034 `json:"system_processing_mode,omitempty"` // I034/060
-	MessageCountValues   *MessageCountValues034   `json:"message_count_values,omitempty"`   // I034/070
-	GenericPolarWindow   *GenericPolarWindow034   `json:"generic_polar_window,omitempty"`   // I034/100
-	DataFilter           *DataFilter034           `json:"data_filter,omitempty"`            // I034/110
-	Position3D           *Position3D034           `json:"position_3d,omitempty"`            // I034/120
-	CollimationError     *CollimationError034     `json:"collimation_error,omitempty"`      // I034/090
-	ReservedExpansion    *ReservedField034        `json:"reserved_expansion,omitempty"`     // I034/RE
-	SpecialPurpose       *SpecialPurposeField034  `json:"special_purpose,omitempty"`        // I034/SP
+func (m *CAT034Message) GetTimeOfDay() time.Duration {
+	if m.TimeOfDay != nil {
+		return *m.TimeOfDay
+	}
+	return 0
+}
+
+func (m *CAT034Message) GetSAC() uint8 {
+	if m.DataSourceIdentifier != nil {
+		return m.DataSourceIdentifier.SAC
+	}
+	return 0
+}
+
+func (m *CAT034Message) GetSIC() uint8 {
+	if m.DataSourceIdentifier != nil {
+		return m.DataSourceIdentifier.SIC
+	}
+	return 0
 }
 
 // I034/010 - Data Source Identifier

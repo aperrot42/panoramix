@@ -34,11 +34,12 @@ func TestDispatch(t *testing.T) {
 	if res.Category != 48 {
 		t.Errorf("expected category 48, got %d", res.Category)
 	}
-	if res.Cat048 == nil {
-		t.Fatal("expected Cat048 to be non-nil")
+	cat048, ok := res.Record.(*Cat048Message)
+	if !ok {
+		t.Fatal("expected Record to be *Cat048Message")
 	}
 	// Check that DataSource was decoded (FSPEC bit 1)
-	if res.Cat048.DataSource == nil {
+	if cat048.DataSource == nil {
 		t.Error("expected Cat048.DataSource to be non-nil")
 	}
 

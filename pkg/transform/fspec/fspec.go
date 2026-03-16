@@ -1,43 +1,42 @@
 package fspec
 
 import (
+	"reflect"
+
 	"github.com/aperrot42/panoramix/pkg/asterix"
 )
 
-// ComputeAvailableFields creates a computed field containing all available FSPEC fields for a message
+// ComputeAvailableFields returns the names of non-nil pointer fields on the Record.
 func ComputeAvailableFields(msg *asterix.AsterixMessage) []string {
-	if msg.Items == nil {
-		msg.Items = make(map[string]any)
+	if msg.Record == nil {
+		return nil
 	}
 
-	// Extract available field names from the decoded Items keys
-	var availableFields []string
-	for fieldName := range msg.Items {
-		// Skip the computed field itself to avoid recursion
-		if fieldName != "computed" {
-			availableFields = append(availableFields, fieldName)
+	v := reflect.ValueOf(msg.Record)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+
+	t := v.Type()
+	var fields []string
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.Kind() == reflect.Ptr && !f.IsNil() {
+			tag := t.Field(i).Tag.Get("json")
+			if tag != "" {
+				// strip ",omitempty"
+				for j := 0; j < len(tag); j++ {
+					if tag[j] == ',' {
+						tag = tag[:j]
+						break
+					}
+				}
+				fields = append(fields, tag)
+			}
 		}
 	}
-
-	return availableFields
-}
-
-// AddAvailableFields adds computed FSPEC available fields to the message
-func AddAvailableFields(msg *asterix.AsterixMessage) {
-	if msg.Items == nil {
-		msg.Items = make(map[string]any)
-	}
-
-	// Get or create computed field
-	var computed map[string]any
-	if existing, ok := msg.Items["computed"]; ok {
-		computed = existing.(map[string]any)
-	} else {
-		computed = make(map[string]any)
-		msg.Items["computed"] = computed
-	}
-
-	// Add available fields to computed
-	availableFields := ComputeAvailableFields(msg)
-	computed["fspec_available_fields"] = availableFields
+	return fields
 }

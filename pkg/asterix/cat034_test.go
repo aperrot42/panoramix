@@ -83,29 +83,30 @@ func TestCAT034RealWorldDecoding(t *testing.T) {
 				t.Errorf("Category = %d, want %d", msg.Category, tt.wantCat)
 			}
 
-			if msg.Sic != tt.wantSIC {
-				t.Errorf("SIC = %d, want %d", msg.Sic, tt.wantSIC)
+			if msg.Record.GetSIC() != tt.wantSIC {
+				t.Errorf("SIC = %d, want %d", msg.Record.GetSIC(), tt.wantSIC)
 			}
 
-			if msg.Sac != tt.wantSAC {
-				t.Errorf("SAC = %d, want %d", msg.Sac, tt.wantSAC)
+			if msg.Record.GetSAC() != tt.wantSAC {
+				t.Errorf("SAC = %d, want %d", msg.Record.GetSAC(), tt.wantSAC)
 			}
 
-			if msg.Cat034 == nil {
-				t.Fatal("Cat034 is nil")
+			cat034, ok := msg.Record.(*CAT034Message)
+			if !ok {
+				t.Fatal("expected Record to be *CAT034Message")
 			}
 
-			fieldCount := countCAT034Fields(msg.Cat034)
+			fieldCount := countCAT034Fields(cat034)
 			if fieldCount < tt.minFields {
 				t.Errorf("Cat034 field count = %d, want at least %d", fieldCount, tt.minFields)
 			}
 
 			// Verify mandatory fields exist
-			if msg.Cat034.DataSourceIdentifier == nil {
+			if cat034.DataSourceIdentifier == nil {
 				t.Error("Missing mandatory field DataSourceIdentifier (I034/010)")
 			}
 
-			if msg.Cat034.MessageType == nil {
+			if cat034.MessageType == nil {
 				t.Error("Missing mandatory field MessageType (I034/000)")
 			}
 
