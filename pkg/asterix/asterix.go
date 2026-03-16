@@ -17,7 +17,9 @@ type AsterixMessage struct {
 	Category byte
 	Sic      uint8
 	Sac      uint8
-	Items    map[string]interface{}
+	Items    map[string]interface{} // deprecated: nil for CAT 034/048
+	Cat034   *CAT034Message         // non-nil for CAT 034
+	Cat048   *Cat048Message         // non-nil for CAT 048
 	FSPEC    []byte
 }
 
@@ -53,6 +55,24 @@ func ParseMessage(r io.Reader) (*RawAsterixMessage, error) {
 		Length:   length,
 		Payload:  payload,
 	}, nil
+}
+
+// DecodeFromBytes decodes an ASTERIX message directly from a byte slice,
+// sub-slicing without copying. The returned message references the input data.
+func DecodeFromBytes(data []byte) (*AsterixMessage, error) {
+	if len(data) < 3 {
+		return nil, fmt.Errorf("data too short: %d bytes", len(data))
+	}
+	length := binary.BigEndian.Uint16(data[1:3])
+	if length < 3 || int(length) > len(data) {
+		return nil, fmt.Errorf("invalid message length: %d", length)
+	}
+	msg := &RawAsterixMessage{
+		Category: data[0],
+		Length:   length,
+		Payload:  data[3:length], // sub-slice, zero-copy
+	}
+	return Dispatch(msg)
 }
 
 // RegisterDecoder registers or replaces a category decoder.

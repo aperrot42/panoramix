@@ -12,91 +12,142 @@ type CAT048Decoder struct {
 	BDSDecoder BDSDecoder // optional; nil means raw-only BDS output
 }
 
+// decode calls a field decoder, type-asserts the result, and stores a pointer in dst.
+func decode[T any](data []byte, fn func([]byte) (interface{}, int, error), dst **T) (int, error) {
+	v, n, err := fn(data)
+	if err != nil {
+		return 0, err
+	}
+	r := v.(T)
+	*dst = &r
+	return n, nil
+}
+
 func (d *CAT048Decoder) Decode(msg *RawAsterixMessage) (*AsterixMessage, error) {
 	if msg.Category != 48 {
 		return nil, fmt.Errorf("expected category 48, got %d", msg.Category)
 	}
 
-	fspec, restPayload, err := extractFSPEC(msg.Payload)
+	fspec, payload, err := extractFSPEC(msg.Payload)
 	if err != nil {
 		return nil, err
 	}
 
-	items := cat048Items
-	if d.BDSDecoder != nil {
-		items = make(map[int]DataItem, len(cat048Items))
-		for k, v := range cat048Items {
-			items[k] = v
-		}
-		items[10] = NewDataItem("I048/250", func(data []byte) (interface{}, int, error) {
-			return decodeBDSRegisterDataWith(d.BDSDecoder, data)
-		})
-	}
-
-	decoded, _, err := WalkFSPEC(fspec, restPayload, items)
+	cat048, err := d.decodeFields(fspec, payload)
 	if err != nil {
 		return nil, err
 	}
 
-	AsterixMessage := &AsterixMessage{
+	result := &AsterixMessage{
 		Category: msg.Category,
-		Sic:      decoded["I048/010"].(map[string]uint8)["SIC"],
-		Sac:      decoded["I048/010"].(map[string]uint8)["SAC"],
-		Items:    decoded,
+		Cat048:   cat048,
 		FSPEC:    fspec,
 	}
-	return AsterixMessage, nil
+	if cat048.DataSource != nil {
+		result.Sac = cat048.DataSource.SAC
+		result.Sic = cat048.DataSource.SIC
+	}
+	return result, nil
 }
 
-var cat048Items = map[int]DataItem{
-	// First FSPEC octet (FRN 1-7 + FX)
-	1: NewDataItem("I048/010", decodeDataSourceIdentifier),               // FRN 1: Data Source Identifier
-	2: NewDataItem("I048/140", decodeTimeOfDay),                          // FRN 2: Time-of-Day
-	3: NewDataItem("I048/020", decodeTargetReportDescriptor),             // FRN 3: Type and Properties of the Target Report
-	4: NewDataItem("I048/040", decodeMeasuredPositionInPolarCoordinates), // FRN 4: Measured Position in Slant Polar Coordinates
-	5: NewDataItem("I048/070", decodeMode3ACode),                         // FRN 5: Mode-3/A Code in Octal Representation
-	6: NewDataItem("I048/090", decodeFlightLevel),                        // FRN 6: Flight Level in Binary Representation
-	7: NewDataItem("I048/130", decodeRadarPlotCharacteristics),           // FRN 7: Radar Plot Characteristics
-	//FX = Field Extension Indicator
+// decodeFields walks the FSPEC and populates a Cat048Message directly.
+func (d *CAT048Decoder) decodeFields(fspec []byte, payload []byte) (*Cat048Message, error) {
+	m := &Cat048Message{}
+	cursor := payload
+	frn := 1
 
-	// Second FSPEC octet (FRN 8-14 + FX)
-	8:  NewDataItem("I048/220", decodeAircraftAddress),             // FRN 8: Aircraft Address
-	9:  NewDataItem("I048/240", decodeAircraftIdentification),      // FRN 9: Aircraft Identification
-	10: NewDataItem("I048/250", decodeBDSRegisterData),             // FRN 10: Mode S MB Data
-	11: NewDataItem("I048/161", decodeTrackNumber),                 // FRN 11: Track Number
-	12: NewDataItem("I048/042", decodeCalculatedPositionCartesian), // FRN 12: Calculated Position in Cartesian Coordinates
-	13: NewDataItem("I048/200", decodeCalculatedTrackVelocity),     // FRN 13: Calculated Track Velocity in Polar Representation
-	14: NewDataItem("I048/170", decodeTrackStatus),                 // FRN 14: Track Status
-	//FX = Field Extension Indicator
+	for _, fspecByte := range fspec {
+		for bit := 7; bit >= 1; bit-- {
+			if fspecByte&(1<<uint(bit)) != 0 {
+				n, err := d.decodeField(frn, cursor, m)
+				if err != nil {
+					return nil, fmt.Errorf("FRN %d: %w", frn, err)
+				}
+				cursor = cursor[n:]
+			}
+			frn++
+		}
+	}
+	return m, nil
+}
 
-	// Third FSPEC octet (FRN 15-21 + FX)
-	15: NewDataItem("I048/210", decodeTrackQuality),             // FRN 15: Track Quality
-	16: NewDataItem("I048/030", decodeWarningErrorConditions),   // FRN 16: Warning/Error Conditions/Target Classification
-	17: NewDataItem("I048/080", decodeMode3ACodeConfidence),     // FRN 17: Mode-3/A Code Confidence Indicator
-	18: NewDataItem("I048/100", decodeModeCodeConfidence),       // FRN 18: Mode-C Code and Confidence Indicator
-	19: NewDataItem("I048/110", decodeHeightMeasured3D),         // FRN 19: Height Measured by 3D Radar
-	20: NewDataItem("I048/120", decodeRadialDopplerSpeed),       // FRN 20: Radial Doppler Speed
-	21: NewDataItem("I048/230", decodeCommunicationsCapability), // FRN 21: Communications / ACAS Capability and Flight Status
-	//FX = Field Extension Indicator
-
-	// Fourth FSPEC octet (FRN 22-28 + FX)
-	22: NewDataItem("I048/260", decodeACASResolutionAdvisory), // FRN 22: ACAS Resolution Advisory Report
-	23: NewDataItem("I048/055", decodeMode1Code),              // FRN 23: Mode-1 Code in Octal Representation
-	24: NewDataItem("I048/050", decodeMode2Code),              // FRN 24: Mode-2 Code in Octal Representation
-	25: NewDataItem("I048/065", decodeMode1CodeConfidence),    // FRN 25: Mode-1 Code Confidence Indicator
-	26: NewDataItem("I048/060", decodeMode2CodeConfidence),    // FRN 26: Mode-2 Code Confidence Indicator
-	27: NewDataItem("I048/SP", decodeSpecialPurposeField),     // FRN 27: Special Purpose Field
-	28: NewDataItem("I048/RE", decodeReservedExpansionField),  // FRN 28: Reserved Expansion Field
-	//FX = Field Extension Indicator
+func (d *CAT048Decoder) decodeField(frn int, data []byte, m *Cat048Message) (int, error) {
+	switch frn {
+	case 1: // I048/010
+		return decode(data, decodeDataSourceIdentifier, &m.DataSource)
+	case 2: // I048/140
+		return decode(data, decodeTimeOfDay, &m.TimeOfDay)
+	case 3: // I048/020
+		return decode(data, decodeTargetReportDescriptor, &m.TargetReport)
+	case 4: // I048/040
+		return decode(data, decodeMeasuredPositionInPolarCoordinates, &m.MeasuredPosition)
+	case 5: // I048/070
+		return decode(data, decodeMode3ACode, &m.Mode3A)
+	case 6: // I048/090
+		return decode(data, decodeFlightLevel, &m.FlightLevel)
+	case 7: // I048/130
+		return decode(data, decodeRadarPlotCharacteristics, &m.RadarPlot)
+	case 8: // I048/220
+		return decode(data, decodeAircraftAddress, &m.AircraftAddress)
+	case 9: // I048/240
+		return decode(data, decodeAircraftIdentification, &m.AircraftIdentification)
+	case 10: // I048/250
+		if d.BDSDecoder != nil {
+			bds := d.BDSDecoder
+			return decode(data, func(d []byte) (interface{}, int, error) {
+				return decodeBDSRegisterDataWith(bds, d)
+			}, &m.BDSRegister)
+		}
+		return decode(data, decodeBDSRegisterData, &m.BDSRegister)
+	case 11: // I048/161
+		return decode(data, decodeTrackNumber, &m.TrackNumber)
+	case 12: // I048/042
+		return decode(data, decodeCalculatedPositionCartesian, &m.CalculatedPosition)
+	case 13: // I048/200
+		return decode(data, decodeCalculatedTrackVelocity, &m.TrackVelocity)
+	case 14: // I048/170
+		return decode(data, decodeTrackStatus, &m.TrackStatus)
+	case 15: // I048/210
+		return decode(data, decodeTrackQuality, &m.TrackQuality)
+	case 16: // I048/030
+		return decode(data, decodeWarningErrorConditions, &m.WarningError)
+	case 17: // I048/080
+		return decode(data, decodeMode3ACodeConfidence, &m.Mode3AConfidence)
+	case 18: // I048/100
+		return decode(data, decodeModeCodeConfidence, &m.ModeCConfidence)
+	case 19: // I048/110
+		return decode(data, decodeHeightMeasured3D, &m.Height3D)
+	case 20: // I048/120
+		return decode(data, decodeRadialDopplerSpeed, &m.RadialDoppler)
+	case 21: // I048/230
+		return decode(data, decodeCommunicationsCapability, &m.CommCapability)
+	case 22: // I048/260
+		return decode(data, decodeACASResolutionAdvisory, &m.ACASAdvisory)
+	case 23: // I048/055
+		return decode(data, decodeMode1Code, &m.Mode1)
+	case 24: // I048/050
+		return decode(data, decodeMode2Code, &m.Mode2)
+	case 25: // I048/065
+		return decode(data, decodeMode1CodeConfidence, &m.Mode1Confidence)
+	case 26: // I048/060
+		return decode(data, decodeMode2CodeConfidence, &m.Mode2Confidence)
+	case 27: // I048/SP
+		_, n, err := decodeSpecialPurposeField(data)
+		return n, err
+	case 28: // I048/RE
+		_, n, err := decodeReservedExpansionField(data)
+		return n, err
+	}
+	return 0, nil
 }
 
 func decodeDataSourceIdentifier(data []byte) (interface{}, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/010")
 	}
-	return map[string]uint8{
-		"SAC": data[0],
-		"SIC": data[1],
+	return DataSourceIdentifier{
+		SAC: data[0],
+		SIC: data[1],
 	}, 2, nil
 }
 
@@ -168,12 +219,11 @@ func decodeTimeOfDay(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/140")
 	}
 	v := uint24(data[:3])
-	// Unit: 1/128 seconds so convert to nanoseconds
-	duration := time.Duration((time.Duration(v) * time.Second) / 128)
+	// raw * (1/128) seconds → time.Duration
+	duration := time.Duration(v) * time.Second / 128
 
-	return map[string]interface{}{
-		"raw_value":   v,        // Raw value in 1/128 second units
-		"duration_ns": duration, // Converted as time.Duration
+	return TimeOfDay{
+		Duration: duration,
 	}, 3, nil
 }
 
@@ -254,25 +304,14 @@ func decodeFlightLevel(data []byte) (interface{}, int, error) {
 	b1 := data[0]
 	b2 := data[1]
 
-	v := readBit(b1, 8) // bit 16
-	g := readBit(b1, 7) // bit 15
-
 	// Bits 14–1: 14-bit signed integer
 	raw := (uint16(b1&0x3F) << 8) | uint16(b2) // clear top 2 bits (V & G)
-
-	// Sign-extend
 	signedVal := SignExtend14To16(raw)
 
-	return struct {
-		FlightLevel float64
-		RawValue    int16
-		Validated   bool
-		Garbled     bool
-	}{
-		FlightLevel: float64(signedVal) * 0.25,
-		RawValue:    signedVal,
-		Validated:   !v,
-		Garbled:     g,
+	return FlightLevel{
+		FL:        float64(signedVal) * 0.25, // raw * (1/4) FL
+		Validated: !readBit(b1, 8),           // bit 16: V=0 means validated
+		Garbled:   readBit(b1, 7),            // bit 15: G
 	}, 2, nil
 }
 
@@ -320,14 +359,10 @@ func decodeMeasuredPositionInPolarCoordinates(data []byte) (interface{}, int, er
 	}
 	rhoRaw := binary.BigEndian.Uint16(data[:2])
 	thetaRaw := binary.BigEndian.Uint16(data[2:4])
-	rho := float64(rhoRaw) / 256.0               // LSB = 1/256 NM
-	theta := float64(thetaRaw) * 360.0 / 65536.0 // LSB = 360°/2^16
 
-	return map[string]interface{}{
-		"rho_nm":    rho,
-		"rho_raw":   rhoRaw, // Raw value in 1/256 NM units
-		"theta_deg": theta,
-		"theta_raw": thetaRaw, // Raw value in 360°/2^16 units
+	return MeasuredPositionPolar{
+		Rho:   float64(rhoRaw) / 256.0,              // raw * (1/256) NM
+		Theta: float64(thetaRaw) * 360.0 / 65536.0,  // raw * (360/2^16) degrees
 	}, 4, nil
 }
 
@@ -337,16 +372,11 @@ func decodeMode3ACode(data []byte) (interface{}, int, error) {
 	}
 	b1 := data[0]
 
-	return struct {
-		Validated bool
-		Garbled   bool
-		Local     bool
-		Code      string
-	}{
-		Validated: !readBit(b1, 8), // V bit - 0=validated
-		Garbled:   readBit(b1, 7),  // G bit
-		Local:     readBit(b1, 6),  // L bit
-		Code:      FormatTransponderCodeFromBytes(data, 0),
+	return Mode3ACode{
+		Validated: !readBit(b1, 8),                        // bit 16: V=0 means validated
+		Garbled:   readBit(b1, 7),                         // bit 15: G
+		Local:     readBit(b1, 6),                         // bit 14: L
+		Code:      binary.BigEndian.Uint16(data) & 0x0FFF, // bits 12-1: 12-bit transponder code
 	}, 2, nil
 }
 
@@ -370,16 +400,12 @@ func decodeCalculatedPositionCartesian(data []byte) (interface{}, int, error) {
 	if len(data) < 4 {
 		return nil, 0, fmt.Errorf("too short for I048/042")
 	}
-	// X-Component (signed, two's complement)
 	xComp := int16(binary.BigEndian.Uint16(data[0:2]))
-	// Y-Component (signed, two's complement)
 	yComp := int16(binary.BigEndian.Uint16(data[2:4]))
 
-	return map[string]interface{}{
-		"x_nm":  float64(xComp) / 128.0, // LSB = 1/128 NM
-		"x_raw": xComp,                  // Raw value in 1/128 NM units
-		"y_nm":  float64(yComp) / 128.0, // LSB = 1/128 NM
-		"y_raw": yComp,                  // Raw value in 1/128 NM units
+	return CalculatedPositionCartesian{
+		X: float64(xComp) / 128.0, // raw * (1/128) NM
+		Y: float64(yComp) / 128.0, // raw * (1/128) NM
 	}, 4, nil
 }
 
@@ -390,16 +416,11 @@ func decodeMode2Code(data []byte) (interface{}, int, error) {
 	}
 	b1 := data[0]
 
-	return struct {
-		Validated bool
-		Garbled   bool
-		Local     bool
-		Code      string
-	}{
-		Validated: !readBit(b1, 8), // V bit - 0=validated
-		Garbled:   readBit(b1, 7),  // G bit
-		Local:     readBit(b1, 6),  // L bit
-		Code:      fmt.Sprintf("%04o", binary.BigEndian.Uint16(data)&0x0FFF),
+	return Mode2Code{
+		Validated: !readBit(b1, 8),                        // bit 16: V=0 means validated
+		Garbled:   readBit(b1, 7),                         // bit 15: G
+		Local:     readBit(b1, 6),                         // bit 14: L
+		Code:      binary.BigEndian.Uint16(data) & 0x0FFF, // bits 12-1: 12-bit code
 	}, 2, nil
 }
 
@@ -410,15 +431,10 @@ func decodeMode1Code(data []byte) (interface{}, int, error) {
 	}
 	b := data[0]
 
-	return struct {
-		Validated bool
-		Garbled   bool
-		Local     bool
-		Code      uint8
-	}{
-		Validated: !readBit(b, 8), // V bit - 0=validated
-		Garbled:   readBit(b, 7),  // G bit
-		Local:     readBit(b, 6),  // L bit
+	return Mode1Code{
+		Validated: !readBit(b, 8), // bit 8: V=0 means validated
+		Garbled:   readBit(b, 7),  // bit 7: G
+		Local:     readBit(b, 6),  // bit 6: L
 		Code:      b & 0x1F,       // bits 5-1
 	}, 1, nil
 }
@@ -428,19 +444,11 @@ func decodeMode2CodeConfidence(data []byte) (interface{}, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/060")
 	}
-	return map[string]interface{}{
-		"qa4": readBit(data[0], 4),
-		"qa2": readBit(data[0], 3),
-		"qa1": readBit(data[0], 2),
-		"qb4": readBit(data[0], 1),
-		"qb2": readBit(data[1], 8),
-		"qb1": readBit(data[1], 7),
-		"qc4": readBit(data[1], 6),
-		"qc2": readBit(data[1], 5),
-		"qc1": readBit(data[1], 4),
-		"qd4": readBit(data[1], 3),
-		"qd2": readBit(data[1], 2),
-		"qd1": readBit(data[1], 1),
+	return Mode2CodeConfidence{
+		QA4: readBit(data[0], 4), QA2: readBit(data[0], 3), QA1: readBit(data[0], 2),
+		QB4: readBit(data[0], 1), QB2: readBit(data[1], 8), QB1: readBit(data[1], 7),
+		QC4: readBit(data[1], 6), QC2: readBit(data[1], 5), QC1: readBit(data[1], 4),
+		QD4: readBit(data[1], 3), QD2: readBit(data[1], 2), QD1: readBit(data[1], 1),
 	}, 2, nil
 }
 
@@ -450,12 +458,9 @@ func decodeMode1CodeConfidence(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/065")
 	}
 	b := data[0]
-	return map[string]interface{}{
-		"qa4": readBit(b, 5),
-		"qa2": readBit(b, 4),
-		"qa1": readBit(b, 3),
-		"qb2": readBit(b, 2),
-		"qb1": readBit(b, 1),
+	return Mode1CodeConfidence{
+		QA4: readBit(b, 5), QA2: readBit(b, 4), QA1: readBit(b, 3),
+		QB2: readBit(b, 2), QB1: readBit(b, 1),
 	}, 1, nil
 }
 
@@ -464,19 +469,11 @@ func decodeMode3ACodeConfidence(data []byte) (interface{}, int, error) {
 	if len(data) < 2 {
 		return nil, 0, fmt.Errorf("too short for I048/080")
 	}
-	return map[string]interface{}{
-		"qa4": readBit(data[0], 4),
-		"qa2": readBit(data[0], 3),
-		"qa1": readBit(data[0], 2),
-		"qb4": readBit(data[0], 1),
-		"qb2": readBit(data[1], 8),
-		"qb1": readBit(data[1], 7),
-		"qc4": readBit(data[1], 6),
-		"qc2": readBit(data[1], 5),
-		"qc1": readBit(data[1], 4),
-		"qd4": readBit(data[1], 3),
-		"qd2": readBit(data[1], 2),
-		"qd1": readBit(data[1], 1),
+	return Mode3ACodeConfidence{
+		QA4: readBit(data[0], 4), QA2: readBit(data[0], 3), QA1: readBit(data[0], 2),
+		QB4: readBit(data[0], 1), QB2: readBit(data[1], 8), QB1: readBit(data[1], 7),
+		QC4: readBit(data[1], 6), QC2: readBit(data[1], 5), QC1: readBit(data[1], 4),
+		QD4: readBit(data[1], 3), QD2: readBit(data[1], 2), QD1: readBit(data[1], 1),
 	}, 2, nil
 }
 
@@ -486,31 +483,16 @@ func decodeModeCodeConfidence(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/100")
 	}
 
-	b1 := data[0]
-
-	return struct {
-		Validated bool
-		Garbled   bool
-		Code      uint16
-		Quality   map[string]bool
-	}{
-		Validated: !readBit(b1, 8),
-		Garbled:   readBit(b1, 7),
+	return ModeCCodeConfidence{
+		Validated: !readBit(data[0], 8),
+		Garbled:   readBit(data[0], 7),
 		Code:      binary.BigEndian.Uint16(data[0:2]) & 0x0FFF,
-		Quality: map[string]bool{
-			"qc1": readBit(data[2], 4),
-			"qa1": readBit(data[2], 3),
-			"qc2": readBit(data[2], 2),
-			"qa2": readBit(data[2], 1),
-			"qc4": readBit(data[3], 8),
-			"qa4": readBit(data[3], 7),
-			"qb1": readBit(data[3], 6),
-			"qd1": readBit(data[3], 5),
-			"qb2": readBit(data[3], 4),
-			"qd2": readBit(data[3], 3),
-			"qb4": readBit(data[3], 2),
-			"qd4": readBit(data[3], 1),
-		},
+		QC1:       readBit(data[2], 4), QA1: readBit(data[2], 3),
+		QC2:       readBit(data[2], 2), QA2: readBit(data[2], 1),
+		QC4:       readBit(data[3], 8), QA4: readBit(data[3], 7),
+		QB1:       readBit(data[3], 6), QD1: readBit(data[3], 5),
+		QB2:       readBit(data[3], 4), QD2: readBit(data[3], 3),
+		QB4:       readBit(data[3], 2), QD4: readBit(data[3], 1),
 	}, 4, nil
 }
 
@@ -523,15 +505,14 @@ func decodeHeightMeasured3D(data []byte) (interface{}, int, error) {
 	// 14-bit signed value in two's complement
 	raw := binary.BigEndian.Uint16(data) & 0x3FFF
 	var height int16
-	if raw&0x2000 != 0 { // Check sign bit (bit 14)
-		height = int16(raw | 0xC000) // Sign extend
+	if raw&0x2000 != 0 {
+		height = int16(raw | 0xC000) // sign extend
 	} else {
 		height = int16(raw)
 	}
 
-	return map[string]interface{}{
-		"height_ft":  float64(height) * 25.0, // LSB = 25 ft
-		"height_raw": height,                 // Raw value in 25 ft units
+	return HeightMeasured3D{
+		Height: float64(height) * 25.0, // raw * 25 ft
 	}, 2, nil
 }
 
@@ -541,10 +522,11 @@ func decodeRadialDopplerSpeed(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/120")
 	}
 
-	// This is a compound data item - simplified implementation
-	// Full implementation would need to handle multiple subfields
-	return map[string]interface{}{
-		"note": "Compound data item - simplified implementation",
+	// Compound data item — store raw bytes for now
+	raw := make([]byte, len(data))
+	copy(raw, data)
+	return RadialDopplerSpeed{
+		RawData: raw,
 	}, len(data), nil
 }
 
@@ -554,8 +536,9 @@ func decodeTrackNumber(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/161")
 	}
 
-	trackNum := binary.BigEndian.Uint16(data) & 0x0FFF // 12 bits
-	return trackNum, 2, nil
+	return TrackNumber{
+		Number: binary.BigEndian.Uint16(data) & 0x0FFF, // 12-bit track number
+	}, 2, nil
 }
 
 // I048/170 - Track Status
@@ -567,25 +550,25 @@ func decodeTrackStatus(data []byte) (interface{}, int, error) {
 	b := data[0]
 	offset := 1
 
-	status := map[string]interface{}{
-		"cnf": readBit(b, 8),   // Confirmed vs Tentative Track
-		"rad": (b >> 5) & 0x03, // Type of Sensor(s) maintaining Track
-		"dou": readBit(b, 5),   // Confidence in plot to track association
-		"mah": readBit(b, 4),   // Manoeuvre detection in Horizontal Sense
-		"cdm": (b >> 1) & 0x03, // Climbing/Descending Mode
+	ts := TrackStatus{
+		CNF: readBit(b, 8),   // Confirmed vs Tentative Track
+		RAD: (b >> 5) & 0x03, // Type of Sensor(s) maintaining Track
+		DOU: readBit(b, 5),   // Confidence in plot to track association
+		MAH: readBit(b, 4),   // Manoeuvre detection in Horizontal Sense
+		CDM: (b >> 1) & 0x03, // Climbing/Descending Mode
 	}
 
-	// Check for extensions
 	if readBit(b, 1) && len(data) > offset {
 		b2 := data[offset]
 		offset++
-		status["tre"] = readBit(b2, 8) // Signal for End_of_Track
-		status["gho"] = readBit(b2, 7) // Ghost vs. true target
-		status["sup"] = readBit(b2, 6) // Track maintained with neighbouring info
-		status["tcc"] = readBit(b2, 5) // Type of plot coordinate transformation
+		ts.HasExtension = true
+		ts.TRE = readBit(b2, 8) // Signal for End_of_Track
+		ts.GHO = readBit(b2, 7) // Ghost vs. true target
+		ts.SUP = readBit(b2, 6) // Track maintained with neighbouring info
+		ts.TCC = readBit(b2, 5) // Type of plot coordinate transformation
 	}
 
-	return status, offset, nil
+	return ts, offset, nil
 }
 
 // I048/200 - Calculated Track Velocity in Polar Co-ordinates
@@ -594,14 +577,12 @@ func decodeCalculatedTrackVelocity(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/200")
 	}
 
-	groundSpeed := binary.BigEndian.Uint16(data[0:2])
-	heading := binary.BigEndian.Uint16(data[2:4])
+	gsRaw := binary.BigEndian.Uint16(data[0:2])
+	hdgRaw := binary.BigEndian.Uint16(data[2:4])
 
-	return map[string]interface{}{
-		"groundspeed_kt":  float64(groundSpeed) * 0.22,        // LSB = (2^-14) NM/s ≈ 0.22 kt
-		"groundspeed_raw": groundSpeed,                        // Raw value in (2^-14) NM/s units
-		"heading_deg":     float64(heading) * 360.0 / 65536.0, // LSB = 360°/2^16
-		"heading_raw":     heading,                            // Raw value in 360°/2^16 units
+	return CalculatedTrackVelocity{
+		Groundspeed: float64(gsRaw) / 16384.0,            // raw * (2^-14) NM/s
+		Heading:     float64(hdgRaw) * 360.0 / 65536.0,   // raw * (360/2^16) degrees from geographic north
 	}, 4, nil
 }
 
@@ -611,15 +592,11 @@ func decodeTrackQuality(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/210")
 	}
 
-	return map[string]interface{}{
-		"sigma_x_nm":  float64(data[0]) / 128.0,   // Standard deviation on X axis
-		"sigma_x_raw": data[0],                    // Raw value in 1/128 NM units
-		"sigma_y_nm":  float64(data[1]) / 128.0,   // Standard deviation on Y axis
-		"sigma_y_raw": data[1],                    // Raw value in 1/128 NM units
-		"sigma_v_kt":  float64(data[2]) * 0.22,    // Standard deviation on groundspeed
-		"sigma_v_raw": data[2],                    // Raw value in (2^-14) NM/s units
-		"sigma_h_deg": float64(data[3]) * 0.08789, // Standard deviation on heading
-		"sigma_h_raw": data[3],                    // Raw value in 360°/2^12 units
+	return TrackQuality{
+		SigmaX: float64(data[0]) / 128.0,          // raw * (1/128) NM
+		SigmaY: float64(data[1]) / 128.0,          // raw * (1/128) NM
+		SigmaV: float64(data[2]) / 16384.0,        // raw * (2^-14) NM/s
+		SigmaH: float64(data[3]) * 360.0 / 4096.0, // raw * (360/2^12) degrees
 	}, 4, nil
 }
 
@@ -632,15 +609,15 @@ func decodeCommunicationsCapability(data []byte) (interface{}, int, error) {
 	b1 := data[0]
 	b2 := data[1]
 
-	return map[string]interface{}{
-		"com":  (b1 >> 5) & 0x07, // Communications capability
-		"stat": (b1 >> 2) & 0x07, // Flight Status
-		"si":   readBit(b1, 2),   // SI/II Transponder Capability
-		"mssc": readBit(b2, 8),   // Mode-S Specific Service Capability
-		"arc":  readBit(b2, 7),   // Altitude reporting capability
-		"aic":  readBit(b2, 6),   // Aircraft identification capability
-		"b1a":  readBit(b2, 5),   // BDS 1,0 bit 16
-		"b1b":  b2 & 0x0F,        // BDS 1,0 bits 37/40
+	return CommunicationsCapability{
+		COM:  (b1 >> 5) & 0x07, // Communications capability
+		STAT: (b1 >> 2) & 0x07, // Flight Status
+		SI:   readBit(b1, 2),   // SI/II Transponder Capability
+		MSSC: readBit(b2, 8),   // Mode-S Specific Service Capability
+		ARC:  readBit(b2, 7),   // Altitude reporting capability
+		AIC:  readBit(b2, 6),   // Aircraft identification capability
+		B1A:  readBit(b2, 5),   // BDS 1,0 bit 16
+		B1B:  b2 & 0x0F,        // BDS 1,0 bits 37/40
 	}, 2, nil
 }
 
@@ -671,6 +648,7 @@ func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (interface{},
 
 		reg := BDSRegister{
 			BDSCode:    bdsAddr,
+			RawData:    bdsData,
 			BDSDataRaw: hex.EncodeToString(bdsData),
 		}
 
@@ -699,9 +677,8 @@ func decodeACASResolutionAdvisory(data []byte) (interface{}, int, error) {
 		return nil, 0, fmt.Errorf("too short for I048/260")
 	}
 
-	// Extract 56-bit ACAS RA data
-	return map[string]interface{}{
-		"acas_ra": hex.EncodeToString(data[:7]),
+	return ACASResolutionAdvisory{
+		ACASRA: hex.EncodeToString(data[:7]),
 	}, 7, nil
 }
 
@@ -712,23 +689,18 @@ func decodeWarningErrorConditions(data []byte) (interface{}, int, error) {
 	}
 
 	offset := 0
-	codes := make([]uint8, 0)
+	var codes []uint8
 
 	for offset < len(data) {
 		b := data[offset]
-		code := (b >> 1) & 0x7F // bits 8-2
-		codes = append(codes, code)
+		codes = append(codes, (b>>1)&0x7F) // bits 8-2
 		offset++
-
-		// Check FX bit (bit 1) - if 0, end of data item
-		if (b & 0x01) == 0 {
+		if b&0x01 == 0 { // FX bit - 0 means end
 			break
 		}
 	}
 
-	return map[string]interface{}{
-		"codes": codes,
-	}, offset, nil
+	return WarningErrorConditions{Codes: codes}, offset, nil
 }
 
 // Placeholder implementations for Special Purpose and Reserved Expansion Fields
