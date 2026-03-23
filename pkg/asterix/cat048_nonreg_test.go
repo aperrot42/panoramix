@@ -3,6 +3,7 @@ package asterix
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"sync"
@@ -372,8 +373,9 @@ func TestCAT048NonRegression_BDSRegisterData(t *testing.T) {
 			t.Errorf("missing register %s", key)
 			continue
 		}
-		if reg.BDSDataRaw != wantRaw {
-			t.Errorf("register %s raw = %q, want %q", key, reg.BDSDataRaw, wantRaw)
+		gotRaw := fmt.Sprintf("%x", reg.RawData)
+		if gotRaw != wantRaw {
+			t.Errorf("register %s raw = %q, want %q", key, gotRaw, wantRaw)
 		}
 	}
 }

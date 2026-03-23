@@ -8,9 +8,7 @@ import (
 	"time"
 )
 
-type CAT048Decoder struct {
-	BDSDecoder BDSDecoder // optional; nil means raw-only BDS output
-}
+type CAT048Decoder struct{}
 
 // decode calls a field decoder, type-asserts the result, and stores a pointer in dst.
 func decode[T any](data []byte, fn func([]byte) (any, int, error), dst **T) (int, error) {
@@ -87,12 +85,6 @@ func (d *CAT048Decoder) decodeField(frn int, data []byte, m *Cat048Message) (int
 	case 9: // I048/240
 		return decode(data, decodeAircraftIdentification, &m.AircraftIdentification)
 	case 10: // I048/250
-		if d.BDSDecoder != nil {
-			bds := d.BDSDecoder
-			return decode(data, func(d []byte) (any, int, error) {
-				return decodeBDSRegisterDataWith(bds, d)
-			}, &m.BDSRegister)
-		}
 		return decode(data, decodeBDSRegisterData, &m.BDSRegister)
 	case 11: // I048/161
 		return decode(data, decodeTrackNumber, &m.TrackNumber)
@@ -616,47 +608,29 @@ func decodeCommunicationsCapability(data []byte) (any, int, error) {
 	}, 2, nil
 }
 
-// decodeBDSRegisterData decodes I048/250 Mode S MB Data (raw-only, no BDS interpretation).
+// decodeBDSRegisterData decodes I048/250 Mode S MB Data (raw only).
+// BDS interpretation is done by a downstream pipeline filter.
 func decodeBDSRegisterData(data []byte) (any, int, error) {
-	return decodeBDSRegisterDataWith(nil, data)
-}
-
-// decodeBDSRegisterDataWith decodes I048/250 Mode S MB Data.
-// If bdsDecoder is non-nil, each register is decoded into a typed struct.
-func decodeBDSRegisterDataWith(bdsDecoder BDSDecoder, data []byte) (any, int, error) {
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("too short for I048/250")
 	}
 
 	rep := data[0]
 	offset := 1
-	registers := make(map[string]BDSRegister)
+	registers := make(map[string]BDSRegister, rep)
 
-	for i := uint8(0); i < rep; i++ {
+	for range rep {
 		if offset+8 > len(data) {
 			break
 		}
 
 		bdsData := data[offset : offset+7]
 		bdsAddr := data[offset+7]
-		bdsKey := fmt.Sprintf("0x%02x", bdsAddr)
 
-		reg := BDSRegister{
-			BDSCode:    bdsAddr,
-			RawData:    bdsData,
-			BDSDataRaw: hex.EncodeToString(bdsData),
+		registers[fmt.Sprintf("0x%02x", bdsAddr)] = BDSRegister{
+			BDSCode: bdsAddr,
+			RawData: bdsData,
 		}
-
-		if bdsDecoder != nil {
-			decoded, err := bdsDecoder.DecodeBDS(bdsAddr, bdsData)
-			if err != nil {
-				reg.Error = err.Error()
-			} else {
-				reg.Decoded = decoded
-			}
-		}
-
-		registers[bdsKey] = reg
 		offset += 8
 	}
 

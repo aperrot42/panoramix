@@ -29,15 +29,17 @@ func (pt PrecisionTime) MarshalJSON() ([]byte, error) {
 }
 
 type OutputMessage struct {
-	MessageNumber int                    `json:"message_number"`
-	Timestamp     PrecisionTime          `json:"timestamp"`
-	Category      byte                   `json:"category"`
-	Port          int                    `json:"port"`
-	SIC           uint8                  `json:"sic"`
-	SAC           uint8                  `json:"sac"`
-	Record        any                    `json:"record"`
-	FSPEC         string                 `json:"fspec,omitempty"`
-	Computed      map[string]any `json:"computed,omitempty"`
+	MessageNumber int                            `json:"message_number"`
+	Timestamp     PrecisionTime                  `json:"timestamp"`
+	Category      byte                           `json:"category"`
+	Port          int                            `json:"port"`
+	SIC           uint8                          `json:"sic"`
+	SAC           uint8                          `json:"sac"`
+	Record        any                            `json:"record"`
+	FSPEC         string                         `json:"fspec,omitempty"`
+	BDS           map[string]bds.DecodedRegister `json:"bds,omitempty"`
+	Position      *position.Position             `json:"position,omitempty"`
+	FSPECFields   []string                       `json:"fspec_fields,omitempty"`
 }
 
 func outputJSON(data any) {
@@ -65,13 +67,6 @@ func outputText(data any) {
 	}
 }
 
-// Compile-time check: bds.Adapter satisfies asterix.BDSDecoder
-var _ asterix.BDSDecoder = (*bds.Adapter)(nil)
-
-func init() {
-	asterix.RegisterDecoder(48, &asterix.CAT048Decoder{BDSDecoder: &bds.Adapter{}})
-}
-
 func main() {
 	filename := flag.String("filename", "recording.ast", "Input .if radar recording file")
 	limit := flag.Int("limit", 0, "Maximum number of messages to parse (0 = unlimited)")
@@ -96,7 +91,6 @@ func main() {
 
 	reader := internal_format.NewReaderWithBaseDate(file, baseDate)
 
-	// Initialize filters
 	var positionExtractor *position.PositionExtractor
 	if *positionFilter {
 		var err error
@@ -137,25 +131,22 @@ func main() {
 			FSPEC:         hex.EncodeToString(asterixMsg.FSPEC),
 		}
 
+		// Decode BDS registers for CAT 048 messages
+		if cat048, ok := asterixMsg.Record.(*asterix.Cat048Message); ok && cat048.BDSRegister != nil {
+			outputMsg.BDS = bds.DecodeRegisters(cat048.BDSRegister)
+		}
+
 		// Apply FSPEC transform if requested
 		if *fspecFields {
-			if outputMsg.Computed == nil {
-				outputMsg.Computed = map[string]any{}
-			}
-			computedFspec := fspec.ComputeAvailableFields(asterixMsg)
-			outputMsg.Computed["fspec_available_fields"] = computedFspec
+			outputMsg.FSPECFields = fspec.ComputeAvailableFields(asterixMsg)
 		}
 
 		if *positionFilter && positionExtractor != nil {
-			// Apply position filter
-			position, err := positionExtractor.ExtractFromMessage(asterixMsg, record.Timestamp)
+			pos, err := positionExtractor.ExtractFromMessage(asterixMsg, record.Timestamp)
 			if err != nil {
-				log.Printf("Position filter failed: %v", err)
+				log.Printf("Position extraction failed: %v", err)
 			}
-			if outputMsg.Computed == nil {
-				outputMsg.Computed = map[string]any{}
-			}
-			outputMsg.Computed["position"] = position
+			outputMsg.Position = pos
 		}
 		if *jsonOutput {
 			outputJSON(outputMsg)
