@@ -8,19 +8,16 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
-
-	"github.com/aperrot42/panoramix/pkg/internal_format"
 )
 
-const testDataFile = "../../../../../data/plots_20250701_line_A_recdatach20.if"
+const testDataFile = "../../../../../data/cat048_sample.raw"
 
 // Cached test data — loaded once via sync.Once across all non-regression tests.
 var (
-	cachedTestData     sync.Once
-	cachedMessages     []*AsterixMessage
+	cachedTestData      sync.Once
+	cachedMessages      []*AsterixMessage
 	cachedFirstComplete *AsterixMessage
-	cachedLoadErr      string
+	cachedLoadErr       string
 )
 
 func ensureTestDataLoaded() {
@@ -31,18 +28,11 @@ func ensureTestDataLoaded() {
 			return
 		}
 
-		reader := internal_format.NewReaderWithBaseDate(bytes.NewReader(data), time.Now())
-		for {
-			rec, err := reader.ReadRecord()
-			if err != nil || rec == nil {
-				break
-			}
-			if len(rec.Payload) < 3 || rec.Payload[0] != 48 {
-				continue
-			}
-			msg, err := DecodeFromBytes(rec.Payload)
+		reader := bytes.NewReader(data)
+		for reader.Len() > 0 {
+			msg, err := Decode(reader)
 			if err != nil {
-				continue
+				break
 			}
 			cat048, ok := msg.Record.(*Cat048Message)
 			if !ok {

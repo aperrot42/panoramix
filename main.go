@@ -1,18 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/aperrot42/panoramix/pkg/asterix"
-	"github.com/aperrot42/panoramix/pkg/internal_format"
 	"github.com/aperrot42/panoramix/pkg/modes/bds"
 	"github.com/aperrot42/panoramix/pkg/transform/fspec"
 	"github.com/aperrot42/panoramix/pkg/transform/position"
@@ -29,17 +26,15 @@ func (pt PrecisionTime) MarshalJSON() ([]byte, error) {
 }
 
 type OutputMessage struct {
-	MessageNumber int                            `json:"message_number"`
-	Timestamp     PrecisionTime                  `json:"timestamp"`
-	Category      byte                           `json:"category"`
-	Port          int                            `json:"port"`
-	SIC           uint8                          `json:"sic"`
-	SAC           uint8                          `json:"sac"`
-	Record        any                            `json:"record"`
-	FSPEC         string                         `json:"fspec,omitempty"`
-	BDS           *bds.DecodedRegisters           `json:"bds,omitempty"`
-	Position      *position.Position             `json:"position,omitempty"`
-	FSPECFields   []string                       `json:"fspec_fields,omitempty"`
+	MessageNumber int                   `json:"message_number"`
+	Category      byte                  `json:"category"`
+	SIC           uint8                 `json:"sic"`
+	SAC           uint8                 `json:"sac"`
+	Record        any                   `json:"record"`
+	FSPEC         string                `json:"fspec,omitempty"`
+	BDS           *bds.DecodedRegisters `json:"bds,omitempty"`
+	Position      *position.Position    `json:"position,omitempty"`
+	FSPECFields   []string              `json:"fspec_fields,omitempty"`
 }
 
 func outputJSON(data any) {
@@ -51,30 +46,24 @@ func outputJSON(data any) {
 	fmt.Println(string(jsonData))
 }
 
-func outputText(data any) {
-	switch v := data.(type) {
-	case OutputMessage:
-		fmt.Printf("Msg %3d: CAT=%d Port=%d SIC=%d SAC=%d Time=%s\n",
-			v.MessageNumber, v.Category, v.Port, v.SIC, v.SAC,
-			v.Timestamp.Format("15:04:05.000"))
-	case position.Position:
-		fmt.Printf("Aircraft: SIC=%d SAC=%d Time=%s WGS84=(%.6f,%.6f) Alt=%.0fm\n",
-			v.RadarSIC, v.RadarSAC, v.Timestamp.Format("15:04:05.000"),
-			v.WGS84Position.Latitude_deg, v.WGS84Position.Longitude_deg,
-			v.WGS84Position.AltitudeFt)
-	default:
-		fmt.Printf("Unknown data type: %T\n", data)
-	}
+func outputText(v OutputMessage) {
+	fmt.Printf("Msg %3d: CAT=%d SIC=%d SAC=%d\n",
+		v.MessageNumber, v.Category, v.SIC, v.SAC)
 }
 
 func main() {
-	filename := flag.String("filename", "recording.ast", "Input .if radar recording file")
-	limit := flag.Int("limit", 0, "Maximum number of messages to parse (0 = unlimited)")
+	filename := flag.String("filename", "", "Input file containing raw ASTERIX data")
+	limit := flag.Int("limit", 0, "Maximum number of messages to decode (0 = unlimited)")
 	jsonOutput := flag.Bool("json", false, "Output as JSON instead of text")
-	positionFilter := flag.Bool("position", false, "Add computed position information to raw ASTERIX messages")
-	fspecFields := flag.Bool("fspec-fields", false, "Add computed FSPEC available fields list to messages")
+	positionFilter := flag.Bool("position", false, "Add computed WGS84 position to CAT 048 messages")
+	fspecFields := flag.Bool("fspec-fields", false, "Add FSPEC available fields list to messages")
 	radarConfig := flag.String("radar-config", "radar_config.yaml", "Radar configuration file path")
 	flag.Parse()
+
+	if *filename == "" {
+		fmt.Fprintln(os.Stderr, "Usage: panoramix --filename <asterix-file> [--json] [--limit N] [--position] [--fspec-fields]")
+		os.Exit(1)
+	}
 
 	file, err := os.Open(*filename)
 	if err != nil {
@@ -82,50 +71,33 @@ func main() {
 	}
 	defer file.Close()
 
-	// Extract date from filename for timestamp base
-	baseDate, err := extractDateFromFilename(*filename)
-	if err != nil {
-		log.Printf("Warning: Could not extract date from filename, using current date: %v", err)
-		baseDate = time.Now().UTC()
-	}
-
-	reader := internal_format.NewReaderWithBaseDate(file, baseDate)
-
 	var positionExtractor *position.PositionExtractor
 	if *positionFilter {
-		var err error
 		positionExtractor, err = position.NewPositionExtractorFromConfig(*radarConfig)
 		if err != nil {
-			log.Fatalf("Failed to initialize position extractor with config: %v", err)
+			log.Fatalf("Failed to initialize position extractor: %v", err)
 		}
 	}
 
+	count := 0
 	for {
-		if *limit > 0 && reader.Count() >= *limit {
+		if *limit > 0 && count >= *limit {
 			break
 		}
 
-		// Read next .if record
-		record, err := reader.ReadRecord()
+		asterixMsg, err := asterix.Decode(file)
 		if err != nil {
-			break // EOF or read error
-		}
-		if record == nil {
-			continue // Skip invalid records
+			if count == 0 {
+				log.Fatalf("Failed to decode first message: %v", err)
+			}
+			break // EOF or unrecoverable error
 		}
 
-		// Decode ASTERIX message from payload
-		asterixMsg, err := asterix.Decode(bytes.NewReader(record.Payload))
-		if err != nil {
-			log.Printf("Msg %3d: decode error: %v", record.MessageNumber, err)
-			continue
-		}
+		count++
 
 		outputMsg := OutputMessage{
-			MessageNumber: record.MessageNumber,
-			Timestamp:     PrecisionTime{record.Timestamp},
+			MessageNumber: count,
 			Category:      asterixMsg.Category,
-			Port:          record.Port,
 			SIC:           asterixMsg.Record.GetSIC(),
 			SAC:           asterixMsg.Record.GetSAC(),
 			Record:        asterixMsg.Record,
@@ -174,37 +146,18 @@ func main() {
 					fl := cat048.FlightLevel.FL
 					plot.FL = &fl
 				}
-				pos, err := positionExtractor.Extract(plot, record.Timestamp)
+				pos, err := positionExtractor.Extract(plot, time.Now())
 				if err != nil {
 					log.Printf("Position extraction failed: %v", err)
 				}
 				outputMsg.Position = pos
 			}
 		}
+
 		if *jsonOutput {
 			outputJSON(outputMsg)
 		} else {
 			outputText(outputMsg)
 		}
 	}
-}
-
-// extractDateFromFilename parses date from .if filename format
-// Expected format: ...YYYY-MM-DD_HH[h]MM[m]SS[s]_...
-// Example: ANY-OPS_DOLS_A_IP1_G_2025-05-15_12h00m00s_2025-05-15_18h00m59s.if
-func extractDateFromFilename(filename string) (time.Time, error) {
-	// Look for YYYY-MM-DD pattern in filename
-	re := regexp.MustCompile(`(\d{4}-\d{2}-\d{2})`)
-	matches := re.FindStringSubmatch(filename)
-	if len(matches) < 2 {
-		return time.Time{}, fmt.Errorf("no date found in filename: %s", filename)
-	}
-
-	dateStr := matches[1]
-	date, err := time.Parse("2006-01-02", dateStr)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to parse date %s: %v", dateStr, err)
-	}
-
-	return date.UTC(), nil
 }
