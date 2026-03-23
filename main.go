@@ -117,7 +117,8 @@ func main() {
 		// Decode ASTERIX message from payload
 		asterixMsg, err := asterix.Decode(bytes.NewReader(record.Payload))
 		if err != nil {
-			continue // Skip decode errors
+			log.Printf("Msg %3d: decode error: %v", record.MessageNumber, err)
+			continue
 		}
 
 		outputMsg := OutputMessage{
@@ -148,11 +149,37 @@ func main() {
 		}
 
 		if *positionFilter && positionExtractor != nil {
-			pos, err := positionExtractor.ExtractFromMessage(asterixMsg, record.Timestamp)
-			if err != nil {
-				log.Printf("Position extraction failed: %v", err)
+			if cat048, ok := asterixMsg.Record.(*asterix.Cat048Message); ok {
+				plot := position.RawPlot{
+					SIC: cat048.GetSIC(),
+					SAC: cat048.GetSAC(),
+				}
+				if cat048.MeasuredPosition != nil {
+					plot.Polar = &position.PolarCoord{
+						RhoNM:    cat048.MeasuredPosition.Rho,
+						ThetaDeg: cat048.MeasuredPosition.Theta,
+					}
+				}
+				if cat048.CalculatedPosition != nil {
+					plot.Cart = &position.CartCoord{
+						XNM: cat048.CalculatedPosition.X,
+						YNM: cat048.CalculatedPosition.Y,
+					}
+				}
+				if cat048.Height3D != nil {
+					h := cat048.Height3D.Height
+					plot.Alt3D = &h
+				}
+				if cat048.FlightLevel != nil {
+					fl := cat048.FlightLevel.FL
+					plot.FL = &fl
+				}
+				pos, err := positionExtractor.Extract(plot, record.Timestamp)
+				if err != nil {
+					log.Printf("Position extraction failed: %v", err)
+				}
+				outputMsg.Position = pos
 			}
-			outputMsg.Position = pos
 		}
 		if *jsonOutput {
 			outputJSON(outputMsg)
