@@ -7,7 +7,7 @@ func (d *BDS10Decoder) BDSCode() (uint8, uint8) {
 	return 1, 0
 }
 
-func (d *BDS10Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS10Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS10Decoded{}
 
 	// Bits 1-16: Reserved for ACAS

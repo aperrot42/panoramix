@@ -9,7 +9,7 @@ func (d *BDS50Decoder) BDSCode() (uint8, uint8) {
 	return 5, 0
 }
 
-func (d *BDS50Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS50Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS50Decoded{}
 
 	// Bit 1: Status of roll angle

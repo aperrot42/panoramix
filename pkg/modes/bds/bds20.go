@@ -11,7 +11,7 @@ func (d *BDS20Decoder) BDSCode() (uint8, uint8) {
 	return 2, 0
 }
 
-func (d *BDS20Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS20Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS20Decoded{}
 
 	// Bits 9-56: Aircraft identification (8 characters, 6 bits each)

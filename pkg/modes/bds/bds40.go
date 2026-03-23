@@ -9,7 +9,7 @@ func (d *BDS40Decoder) BDSCode() (uint8, uint8) {
 	return 4, 0
 }
 
-func (d *BDS40Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS40Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS40Decoded{}
 
 	// Bit 1: Status of MCP/FCU selected altitude

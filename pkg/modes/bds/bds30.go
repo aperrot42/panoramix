@@ -7,7 +7,7 @@ func (d *BDS30Decoder) BDSCode() (uint8, uint8) {
 	return 3, 0
 }
 
-func (d *BDS30Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS30Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS30Decoded{}
 
 	// This is an ACAS resolution advisory message

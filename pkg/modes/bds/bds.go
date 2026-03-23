@@ -142,10 +142,10 @@ type BDS60Decoded struct {
 	InertialVerticalVelocityValid bool    `json:"inertial_vertical_velocity_valid"`
 }
 
-// Decoder is the interface for BDS register decoders that return typed structs
+// Decoder is the interface for BDS register decoders that return typed structs.
 type Decoder interface {
-	BDSCode() (uint8, uint8)                 // Returns BDS1, BDS2
-	Decode(data []byte) (interface{}, error) // Returns typed struct
+	BDSCode() (uint8, uint8)
+	Decode(data []byte) (any, error)
 }
 
 // Registry of BDS decoders
@@ -160,22 +160,16 @@ var decoders = map[uint8]Decoder{
 	0x60: &BDS60Decoder{}, // BDS 6,0 - Heading and Speed Report
 }
 
-// Decode decodes a BDS register and returns a typed struct
-func Decode(bds1, bds2 uint8, data []byte) (interface{}, error) {
+// Decode decodes a BDS register and returns a typed struct.
+func Decode(bds1, bds2 uint8, data []byte) (any, error) {
 	if len(data) < 7 {
 		return nil, fmt.Errorf("BDS data too short: %d bytes, need 7", len(data))
 	}
 
-	// Combine BDS1 and BDS2 into single code for lookup
 	bdsCode := (bds1 << 4) | bds2
-
 	decoder, ok := decoders[bdsCode]
 	if !ok {
-		// Unknown BDS code, return raw map
-		return map[string]interface{}{
-			"raw":     fmt.Sprintf("%014X", data[:7]),
-			"unknown": true,
-		}, nil
+		return nil, fmt.Errorf("unknown BDS code %d,%d", bds1, bds2)
 	}
 
 	return decoder.Decode(data)

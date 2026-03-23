@@ -7,7 +7,7 @@ func (d *BDS17Decoder) BDSCode() (uint8, uint8) {
 	return 1, 7
 }
 
-func (d *BDS17Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS17Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS17Decoded{}
 
 	// Bits 1-5: Reserved

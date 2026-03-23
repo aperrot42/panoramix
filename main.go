@@ -37,7 +37,7 @@ type OutputMessage struct {
 	SAC           uint8                          `json:"sac"`
 	Record        any                            `json:"record"`
 	FSPEC         string                         `json:"fspec,omitempty"`
-	BDS           map[string]bds.DecodedRegister `json:"bds,omitempty"`
+	BDS           *bds.DecodedRegisters           `json:"bds,omitempty"`
 	Position      *position.Position             `json:"position,omitempty"`
 	FSPECFields   []string                       `json:"fspec_fields,omitempty"`
 }
@@ -133,7 +133,13 @@ func main() {
 
 		// Decode BDS registers for CAT 048 messages
 		if cat048, ok := asterixMsg.Record.(*asterix.Cat048Message); ok && cat048.BDSRegister != nil {
-			outputMsg.BDS = bds.DecodeRegisters(cat048.BDSRegister)
+			raw := make([]bds.RawRegister, 0, len(cat048.BDSRegister.Registers))
+			for _, reg := range cat048.BDSRegister.Registers {
+				raw = append(raw, bds.RawRegister{Code: reg.BDSCode, Data: reg.RawData})
+			}
+			var decoded bds.DecodedRegisters
+			decoded.DecodeAll(raw)
+			outputMsg.BDS = &decoded
 		}
 
 		// Apply FSPEC transform if requested

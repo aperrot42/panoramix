@@ -9,7 +9,7 @@ func (d *BDS60Decoder) BDSCode() (uint8, uint8) {
 	return 6, 0
 }
 
-func (d *BDS60Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS60Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS60Decoded{}
 
 	// Bit 1: Status of magnetic heading

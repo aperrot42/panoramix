@@ -1,35 +1,71 @@
 package bds
 
-import (
-	"fmt"
+import "fmt"
 
-	"github.com/aperrot42/panoramix/pkg/asterix"
-)
-
-// DecodedRegister holds the decoded result for a single BDS register.
-type DecodedRegister struct {
-	BDSCode byte   `json:"bds_code"`
-	Decoded any    `json:"decoded,omitempty"`
-	Error   string `json:"error,omitempty"`
+// DecodedRegisters holds the decoded BDS registers from a message's I048/250 data.
+// Each field is set if the corresponding BDS register was present and decoded successfully.
+type DecodedRegisters struct {
+	BDS10 *BDS10Decoded `json:"bds_1_0,omitempty"`
+	BDS17 *BDS17Decoded `json:"bds_1_7,omitempty"`
+	BDS20 *BDS20Decoded `json:"bds_2_0,omitempty"`
+	BDS30 *BDS30Decoded `json:"bds_3_0,omitempty"`
+	BDS40 *BDS40Decoded `json:"bds_4_0,omitempty"`
+	BDS44 *BDS44Decoded `json:"bds_4_4,omitempty"`
+	BDS50 *BDS50Decoded `json:"bds_5_0,omitempty"`
+	BDS60 *BDS60Decoded `json:"bds_6_0,omitempty"`
 }
 
-// DecodeRegisters decodes all BDS registers from raw ASTERIX I048/250 data.
-func DecodeRegisters(data *asterix.BDSRegisterData) map[string]DecodedRegister {
-	if data == nil {
-		return nil
+// DecodeRegister decodes a single raw BDS register and sets the corresponding
+// typed field on dr. Unknown or malformed registers are silently skipped.
+func (dr *DecodedRegisters) DecodeRegister(bds1, bds2 uint8, data []byte) error {
+	if len(data) < 7 {
+		return fmt.Errorf("BDS data too short: %d bytes, need 7", len(data))
 	}
-	result := make(map[string]DecodedRegister, len(data.Registers))
-	for _, reg := range data.Registers {
-		dr := DecodedRegister{BDSCode: reg.BDSCode}
-		bds1 := (reg.BDSCode >> 4) & 0x0F
-		bds2 := reg.BDSCode & 0x0F
-		decoded, err := Decode(bds1, bds2, reg.RawData)
-		if err != nil {
-			dr.Error = err.Error()
-		} else {
-			dr.Decoded = decoded
-		}
-		result[fmt.Sprintf("%d_%d", bds1, bds2)] = dr
+
+	bdsCode := (bds1 << 4) | bds2
+	decoder, ok := decoders[bdsCode]
+	if !ok {
+		return fmt.Errorf("unknown BDS code %d,%d", bds1, bds2)
 	}
-	return result
+
+	decoded, err := decoder.Decode(data)
+	if err != nil {
+		return err
+	}
+
+	switch v := decoded.(type) {
+	case BDS10Decoded:
+		dr.BDS10 = &v
+	case BDS17Decoded:
+		dr.BDS17 = &v
+	case BDS20Decoded:
+		dr.BDS20 = &v
+	case BDS30Decoded:
+		dr.BDS30 = &v
+	case BDS40Decoded:
+		dr.BDS40 = &v
+	case BDS44Decoded:
+		dr.BDS44 = &v
+	case BDS50Decoded:
+		dr.BDS50 = &v
+	case BDS60Decoded:
+		dr.BDS60 = &v
+	}
+
+	return nil
+}
+
+// RawRegister is a BDS register address and its raw 7-byte payload.
+type RawRegister struct {
+	Code byte
+	Data []byte
+}
+
+// DecodeAll decodes all raw registers and sets the corresponding typed fields.
+func (dr *DecodedRegisters) DecodeAll(registers []RawRegister) {
+	for _, reg := range registers {
+		bds1 := (reg.Code >> 4) & 0x0F
+		bds2 := reg.Code & 0x0F
+		dr.DecodeRegister(bds1, bds2, reg.Data)
+	}
 }

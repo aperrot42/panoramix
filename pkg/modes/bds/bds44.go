@@ -7,7 +7,7 @@ func (d *BDS44Decoder) BDSCode() (uint8, uint8) {
 	return 4, 4
 }
 
-func (d *BDS44Decoder) Decode(data []byte) (interface{}, error) {
+func (d *BDS44Decoder) Decode(data []byte) (any, error) {
 	decoded := BDS44Decoded{}
 
 	// Bit 1: Figure of Merit/Source
