@@ -3,42 +3,33 @@ package position
 import (
 	"testing"
 	"time"
-
-	"github.com/aperrot42/panoramix/pkg/asterix"
 )
 
 func TestPositionExtractorIntegration(t *testing.T) {
 	extractor := NewPositionExtractor()
 
-	radarPos := RadarPosition{
+	extractor.AddRadarPosition(RadarPosition{
 		Latitude:  46.5197,
 		Longitude: 6.6323,
 		Height:    430.0,
 		SIC:       33,
 		SAC:       40,
-	}
-	extractor.AddRadarPosition(radarPos)
+	})
 
-	ds := asterix.DataSourceIdentifier{SAC: 40, SIC: 33}
-	fl := asterix.FlightLevel{FL: 100, Validated: true}
-	polar := asterix.MeasuredPositionPolar{Rho: 96.1640625, Theta: 31.3330078125}
-
-	msg := &asterix.AsterixMessage{
-		Category: 48,
-		Record: &asterix.Cat048Message{
-			DataSource:       &ds,
-			FlightLevel:      &fl,
-			MeasuredPosition: &polar,
-		},
+	fl := float64(100)
+	plot := RawPlot{
+		SIC:   33,
+		SAC:   40,
+		Polar: &PolarCoord{RhoNM: 96.1640625, ThetaDeg: 31.3330078125},
+		FL:    &fl,
 	}
 
-	timestamp := time.Now()
-	obs, err := extractor.ExtractFromMessage(msg, timestamp)
+	obs, err := extractor.Extract(plot, time.Now())
 	if err != nil {
-		t.Fatalf("Failed to extract aircraft observation: %v", err)
+		t.Fatalf("Failed to extract position: %v", err)
 	}
 	if obs == nil {
-		t.Fatal("Expected observation, got nil")
+		t.Fatal("Expected position, got nil")
 	}
 
 	if obs.RadarSIC != 33 || obs.RadarSAC != 40 {
